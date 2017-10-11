@@ -9,8 +9,7 @@ sequence (called _tail_ aka rest _rt_). Sequences are formed of immutable data e
 the same tail, permitting compact representation of hierarchical data.
 
 Add the following dependency to your Cargo.toml file:
-```cargo
-...
+```toml
 [dependencies]
 seq = "0.1.0"
 ```
