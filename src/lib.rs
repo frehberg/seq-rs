@@ -1,76 +1,52 @@
-#![allow(unused_imports)]
+/// The module _seq_ provides a generic sequence container _Seq_ for Rust.
+///
+/// _Seq_ is a generic, lightweight sequence container (LIFO), intended for the context management
+/// in nested function calls using stack-allocated memory.
+///
+/// You can use Seq in your project adding the following dependency to your Cargo.toml file:
+/// ```cargo
+/// ## Cargo.toml file
+/// ...
+/// [dependencies]
+/// seq = "0.2.0"
+/// ```
 
 use std::fmt;
-use std::ops;
 use std::iter::Iterator;
 
-/// The module seq is a lightweight container of data sequences, stacked on top of each other.
+/// The data type Seq is a generic data container providing linked list functionality.
+/// _Seq_ is a sequence of data of type T and lifetime 'a.
 ///
-/// A sequence can be Empty or a construction Cons of a value (Head) and a reference to the rest (Tail).
-/// Sequences are formed of immutable data elements, multiple sequences may share the same Tail, permitting
-/// compact representation of hierarchical data.
-///
-/// The sequence container allows to manage dynamic, linked lists of borrowed data without any
-/// dynamic memory allocation involved (ConsRef), but permits - thanks to the memory safety feature of Rust -
-/// also mixture with dynamic, boxed, owned data on memory heap (ConsOwn) if required. Each element
-/// of the sequence may be associated with a different lifetime, depending on the function context
-/// it has been added to the top of the sequence; 'Empty' is the element with longest lifetime.
-///
-/// In first place 'Seq' is intended as lightweight, dynamic, linked list for deeply, stacked,
-/// nested function calls with the requirement to manage its context-state of immutable data. In
-/// ideal scenarios without any dynamic memory allocation being involved.
-/// The sequence 'Seq' implements the trait 'IntoIterator', enabling the usage of Rust's iterator framework.
-/// ```
-/// use seq;
-///
-/// // Recursive, nested invocation while val<max. Each function-call sums up the sequence.
-/// fn recurs(val: u32, max: u32, tail: &Seq<u32>) {
-///    if val < max {
-///       let sequence = Seq::ConsRef(val, tail);
-///       let sum = sequence.into_iter().fold(0, ops::Add::add);
-///       recurs(val + 1, max, &sequence);
-///    }
-/// }
-///
-/// fn main() {
-///    recurs(0, 10, seq::empty());
+/// Either a sequence is  _Empty_ or a sequence is a construction of a new value
+/// (head or first (ft)) on-top of another sequence (the tail or rest (rt)). The lifetime of the tail must be at least as
+/// long as the one of the head. Two kind of constructions are possible, depending on location of tail in memory-heap or
+/// on stack.
+/// ```rust
+/// pub enum Seq<'a, T: 'a> {
+///     Empty,
+///     ConsRef(T, &'a Seq<'a, T>),
+///     ConsOwn(T, Box<Seq<'a, T>>),
 /// }
 /// ```
-/// 'Seq' permits mixture of stack allocated data and heap allocated data within a single linked list.
-/// The following code is a variation of previous sample, just adding two heap-allocated elements onto top
-/// of sequence finally.
-/// ```
-/// use seq;
+/// The semantic of these variants is as follows:
+/// * `Empty`: The empty sequence `<>`
+/// * `ConsRef(head, tail)`: Constructs a new sequence with `head` being the first element and `tail` referencing another,
+/// borrowed sequence. This variant permits construction of sequences using stack-allocated
+/// data solely.
+/// * `ConsOwn(head, boxedtail)`: Constructs a new sequence with `head` being the first element and `boxedtail` referencing
+/// another, owned, boxed sequence. Here the tail is residing in heap allocated memory. This variant
+/// permits construction of sequences using heap-allocated dynamic data.
 ///
-/// fn prependTwoBoxedValues < 'a > (v: u32, w: u32, seq: & 'a Seq < u32 > ) -> Box < Seq < 'a, u32 > > {
-///    Box::new(Seq::ConsOwn(v +1,
-///       Box::new(Seq::ConsRef(w, seq))))
-/// }
+/// These variants may be combined with each other, representing a mixture of borrowed and owned elements. The memory
+/// safety feature of Rust allows automated and correct management of lifetime of each element of the sequence.
 ///
-/// // Recursive, nested invocation while val<max. Each function-call sums up the sequence.
-/// fn recurs(val: u32, max: u32, tail: &Seq<u32>) {
-///    if val < max {
-///       let sequence = Seq::ConsRef(val, tail);
-///       println!("sum is: {}", sequence.into_iter().fold(0, ops::Add::add));
-///       recurs(val + 1, max, &sequence);
-///    } else {
-///       let sequence: Box<Seq<u32>> = prependTwoBoxedValues(max+1, max, tail);
-///       println!("sum is: {}", sequence.into_iter().fold(0, ops::Add::add));
-///    }
-/// }
+/// The lifetime of each element of the sequence depends on the function-context it has been added to the top of the
+/// sequence; _Empty_ is the element with longest lifetime.
 ///
-/// fn main() {
-///    recurs(0, 10, seq::empty());
-/// }
-/// ```
-
-/// 'Seq' is a sequence of data of type T and lifetime 'a.
+/// In first place, the container  _Seq_ is intended as lightweight, dynamic, stack-allocated, linked list for
+/// use cases such as traversing tree-structures without any dynamic memory-allocation (heap) involved.
 ///
-/// A sequence is either
-/// Empty '<>' or a construction Cons* of a head (ft) and tail (rt): '3|2|1|0|<>'
-///
-/// Either the tail is referencing borrowed data within the current execution scope (ConsRef),
-/// or the tail is formed of owned, boxed data in heap allocated memory (ConsOwn).
+/// The sequence type `Seq` implements the trait `IntoIterator`, enabling the usage of Rust's iterator framework.
 ///
 /// A sequence can be a mixture of borrowed and owned data elements:
 /// ```
@@ -93,6 +69,42 @@ pub enum Seq<'a, T: 'a> {
     Empty,
     ConsRef(T, &'a Seq<'a, T>),
     ConsOwn(T, Box<Seq<'a, T>>),
+}
+
+/// The seqdef! macro defines a stack-allocated sequence variable for the speficied data list,
+/// the last data item in the list will be the top most in the sequence.
+///
+/// Example 1) Creating a seq variable s where 2 is the top most data item
+/// `seqdef!(s; seq::empty() => 0, 1, 2);`
+///
+/// Example 2) Creating a seq variable t without explicit seq::empty(). Seq is identical to `s`.
+/// `seqdef!(t; 0, 1, 2);`
+///
+/// Example 3) Creating a seq variable u, using Seq `s` as tail of example 1.
+/// `seqdef!(u; &s => 3, 4, 5);`
+#[macro_export]
+macro_rules! seqdef {
+  ($id:ident; $ft:expr ) => {
+        let $id =  $crate::Seq::ConsRef( $ft, $crate::empty() );
+   };
+
+   ($id:ident; $ft0:expr, $($ftn:expr),* ) => {
+        let $id =  $crate::Seq::ConsRef( $ft0, $crate::empty() );
+        $(
+        let $id =  $crate::Seq::ConsRef( $ftn, & $id );
+        )*
+   };
+
+   ($id:ident; $rt:expr => $ft:expr ) => {
+        let $id =  $crate::Seq::ConsRef( $ft, $rt );
+   };
+
+   ($id:ident; $rt:expr => $ft0:expr, $($ftn:expr),* ) => {
+        let $id =  $crate::Seq::ConsRef( $ft0, $rt );
+        $(
+        let $id =  $crate::Seq::ConsRef( $ftn, & $id );
+        )*
+   };
 }
 
 /// Function returns static reference to empty list
@@ -178,6 +190,7 @@ mod tests {
     use super::empty;
     use std::ops;
 
+
     fn recurs(val: u32, max: u32, base: &Seq<u32>) {
         let ext = Seq::ConsRef(val, base);
 
@@ -185,6 +198,8 @@ mod tests {
             recurs(val + 1, max, &ext);
         }
     }
+
+
 
     #[test]
     fn test_empty() {
@@ -303,7 +318,6 @@ mod tests {
 
         assert_eq!(&s4, &s4);
     }
-
     #[test]
     fn test_iter() {
         let s0: &Seq<u32> = empty();
@@ -311,7 +325,6 @@ mod tests {
         let s2 = Seq::ConsRef(2u32, &s1);
         let s3 = Seq::ConsRef(3u32, &s2);
         let s4 = Seq::ConsRef(4u32, &s3);
-
         let iter: SeqIterator<u32> = s4.into_iter();
         let sum = iter.fold(0, ops::Add::add);
         assert_eq!(sum, 10);
@@ -324,5 +337,25 @@ mod tests {
         let iter: SeqIterator<u32> = seq.into_iter();
         let sum = iter.fold(0, ops::Add::add);
         assert_eq!(sum, 10);
+    }
+
+    #[test]
+    fn test_macro() {
+        seqdef!(s; empty() => 0);
+        assert_ne!(&s, empty());
+
+        seqdef!(t; &s => 1, 2, 3);
+        assert_ne!(&t, empty());
+
+        seqdef!(u; empty() => 0, 1, 2, 3);
+        assert_ne!(&u, empty());
+
+        assert_eq!(&u, &t);
+
+        seqdef!(v; 0);
+        assert_eq!(&v, &s);
+
+        seqdef!(w; 0, 1, 2, 3);
+        assert_eq!(&w, &u);
     }
 }
