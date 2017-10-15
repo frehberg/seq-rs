@@ -7,11 +7,9 @@ _Seq_ is a lightweight container of data sequences, data being stacked on top of
 Add the following dependency to your Cargo.toml file:
 ```toml
 ## Cargo.toml file
-...
 [dependencies]
 seq = "0.2.0"
 ```
-
 ## Definition
 _Seq_ is defined as generic enum. _Seq_ is a sequence of data of type T and lifetime 'a.
 
@@ -39,7 +37,12 @@ These variants may be combined with each other, representing a mixture of borrow
 safety feature of Rust allows automated and correct management of lifetime of each element of the sequence.
 
 The lifetime of each element of the sequence depends on the function-context it has been added to the top of the
-sequence; _Empty_ is the element with longest lifetime.
+sequence; _Empty_ is the element with longest lifetime (see image).
+
+The following image illustrates the sequences `s`, `t`, `u`. The sequence `s` is a sub-sequence of `t`, and `t` 
+being a sub-sequence of `u`; each one accessible in its function context only. 
+
+![Illustration of sequence elements in stack frames](./doc/illustration.svg)
 
 In first place, the container  _Seq_ is intended as lightweight, dynamic, stack-allocated, linked list for
 use cases such as traversing tree-structures without any dynamic memory-allocation (heap) involved.
