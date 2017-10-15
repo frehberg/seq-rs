@@ -4,9 +4,8 @@ The module _seq_ provides a generic sequence container _Seq_ for Rust.
 
 _Seq_ is a lightweight container of data sequences, data being stacked on top of each other (LIFO).
 
-## Adding 'seq' to your project
-You can use Seq in your project adding the following dependency to your Cargo.toml file:
-```cargo
+Add the following dependency to your Cargo.toml file:
+```toml
 ## Cargo.toml file
 ...
 [dependencies]
