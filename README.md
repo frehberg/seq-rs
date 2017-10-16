@@ -98,7 +98,7 @@ fn head(sequence: &Seq<u32>) -> Option<u32> {
    }
 }
 ```
-## Example: Dynamic sequence in nested/recurs function-calls
+## Example: Dynamic sequence in nested/recursive function-calls
 Sequences can be used to manage state in nested function calls. This code demonstrates how the iterator is used.
 ```rust
 extern crate seq;
@@ -118,7 +118,7 @@ fn main() {
     recurs(0, 10, seq::empty());
 }
 ```
-## Example: Dynamic sequence in nested/recurs function-calls, combined with heap-alloc. data
+## Example: Dynamic sequence in nested/recursive function-calls, combined with heap-alloc. data
 'Seq' permits mixture of stack allocated data and heap allocated data within a single linked list.
 The following code is a variation of previous sample, just adding two heap-allocated elements onto top
 of sequence finally. This code demonstrates how the iterator is used.
