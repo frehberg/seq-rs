@@ -41,15 +41,19 @@ sequence; _Empty_ is the element with longest lifetime (see image).
 
 The following image illustrates the sequences `s`, `t`, `u`. The sequence `s` is a sub-sequence of `t`, and `t` 
 being a sub-sequence of `u`; each one accessible in its function context only. 
-
 ![Illustration of sequence elements in stack frames](./doc/illustration.svg)
 
-In first place, the container  _Seq_ is intended as lightweight, dynamic, stack-allocated, linked list for
-use cases such as traversing tree-structures without any dynamic memory-allocation (heap) involved.
+For use-cases where a sub-routine/expression shall return a temporary extended sequence, it is possible to construct new 
+sequences using elements in heap-memory. In this case these heap-elements are boxed/owned.
+![Illustration of sequence elements in stack frames and heap](./doc/illustration-with-heap.svg)
+
+But, first and foremost, the container  _Seq_ is intended as lightweight, dynamic, stack-allocated, linked list for
+use cases such as managing state/context while traversing tree-like data structures - without any dynamic
+memory-allocation (heap) involved.
 
 The sequence type `Seq` implements the trait `IntoIterator`, enabling the usage of Rust's iterator framework.
 
-## Example Stack Allocated
+## Example: Stack-only Allocated
 A stack allocated sequnece is based on the variants Seq::Empty and Seq::ConsRef only
 ```rust
 extern crate seq;
@@ -65,7 +69,7 @@ fn myfun() {
 }
 ```
 
-## Example Stack-Heap Allocated
+## Example: Stack-and-Heap Allocated
 A sequence can be a mixture of stack-allocated and heap-allocated data elements. The following sequence
 ```rust
 extern crate seq;
@@ -80,7 +84,7 @@ fn myfun() {
    println!("seq {:?}", &s4);
 }
 ```
-## Example Pattern Matching
+## Example: Pattern Matching
 Pattern-matching is used to de-construct a sequence.
 ```rust
 extern crate seq;
@@ -94,7 +98,7 @@ fn head(sequence: &Seq<u32>) -> Option<u32> {
    }
 }
 ```
-## Example Recurse
+## Example: Dynamic sequence in nested/recurs function-calls
 Sequences can be used to manage state in nested function calls. This code demonstrates how the iterator is used.
 ```rust
 extern crate seq;
@@ -114,7 +118,7 @@ fn main() {
     recurs(0, 10, seq::empty());
 }
 ```
-## Example: Recurse and dynamic data
+## Example: Dynamic sequence in nested/recurs function-calls, combined with heap-alloc. data
 'Seq' permits mixture of stack allocated data and heap allocated data within a single linked list.
 The following code is a variation of previous sample, just adding two heap-allocated elements onto top
 of sequence finally. This code demonstrates how the iterator is used.
@@ -144,7 +148,7 @@ fn main() {
    recurs(0, 10, seq::empty());
 }
 ```
-## Example: Macro seqdef!
+## Example: Demonstrating the macro seqdef!
 The `seqdef!` macro defines a stack-allocated sequence variable using the speficied data list,
 the last data item in the list will be the top most in the sequence (head). The macro can be used to
 create a new sequence on top of another one (tail).
