@@ -154,23 +154,30 @@ the last data item in the list will be the top most in the sequence (head). The 
 create a new sequence on top of another one (tail).
 
 ### Macro 1: Creating a seq variable `s`, the head will be `2`.
+Is constructing a sequence s := <>|0|1|2; 
 ```rust
 seqdef!(s; seq::empty() => 0, 1, 2);
 ```
 
 ### Macro 2: Creating a seq variable t without explicit `seq::empty()`. Seq `t` is identical to `s`.
+Is constructing a sequence t := <>|0|1|2; 
 ```rust
 seqdef!(t; 0, 1, 2);
 ```
 
 ### Macro 3: Creating a seq variable u, using Seq `s` of example 1 as tail, the head will be `5`.
+On top of sequence s, constructing a sequence u := &s|3|4|5 the effictive sequence is u := <>|0|1|2|3|4|5; 
 ```rust
 seqdef!(u; &s => 3, 4, 5);
 ```
 
 ### Macro 4: Creating a dynamic seq with MAX elements within stack frame, reading values from iterator
 The previous macros are useful, but limited as the exact number of elements must be known at compile time. 
-The  following macro `seqdef_try!` helps. This macro reserves MAX elements on the stack 
+The previous macros are not able to deal with dynamic number of elements between 1-MAX, where MAX might be a large
+value.
+
+The  following macro `seqdef_try!` simplifies handling of dynamic number of values when constructing a sequence.
+This macro reserves MAX elements on the stack
 every time when entering the function context. The upper limit MAX is defined at compile time. 
 At runtime the  sequence is constructed, reading the elements from the iterator and placing them
 in the reserved stack-memory. When the function context is left, the stack-memory is released.
@@ -185,11 +192,13 @@ The iterator provided to the macro may consume the underlying container-elements
   use std::mem;
   use std::ptr;
   
-  fn large_seq_rollout_on_stack() {
-      const MAX: usize = 2000;
+  fn dynamic_seq_rollout_on_stack() {
+      const MAX: usize = 10;
       let large_list: &[i32] = &[42; MAX];
+      
       // define x of type Result<Seq<i32>>, read all elements from array and place them on stack as sequence
       seqdef_try!(x, i32, MAX; empty() => large_list.iter());
+      
       // handling the result, Ok or Error
       match &x {
           &Ok(ref sequence) => println!("large sum {}", (&*sequence).into_iter().fold(0i32, ops::Add::add)),
