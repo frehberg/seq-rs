@@ -1,6 +1,6 @@
 [package]
 name = "seq"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Frank Rehberger <frehberg@gmail.com>"]
 description = "Generic sequence container implementation for Rust."
 license = "Apache-2.0"

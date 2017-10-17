@@ -8,7 +8,7 @@ Add the following dependency to your Cargo.toml file:
 ```toml
 ## Cargo.toml file
 [dependencies]
-seq = "0.2.0"
+seq = "0.3.0"
 ```
 ## Definition
 _Seq_ is defined as generic enum. _Seq_ is a sequence of data of type T and lifetime 'a.
@@ -153,17 +153,47 @@ The `seqdef!` macro defines a stack-allocated sequence variable using the spefic
 the last data item in the list will be the top most in the sequence (head). The macro can be used to
 create a new sequence on top of another one (tail).
 
-Example 1) Creating a seq variable `s`, the head will be `2`.
-```
+### Macro 1: Creating a seq variable `s`, the head will be `2`.
+```rust
 seqdef!(s; seq::empty() => 0, 1, 2);
 ```
 
-Example 2) Creating a seq variable t without explicit `seq::empty()`. Seq `t` is identical to `s`.
-```
+### Macro 2: Creating a seq variable t without explicit `seq::empty()`. Seq `t` is identical to `s`.
+```rust
 seqdef!(t; 0, 1, 2);
 ```
 
-Example 3) Creating a seq variable u, using Seq `s` of example 1 as tail, the head will be `5`.
-```
+### Macro 3: Creating a seq variable u, using Seq `s` of example 1 as tail, the head will be `5`.
+```rust
 seqdef!(u; &s => 3, 4, 5);
+```
+
+### Macro 4: Creating a dynamic seq with MAX elements within stack frame, reading values from iterator
+The previous macros are useful, but limited as the exact number of elements must be known at compile time. 
+The  following macro `seqdef_try!` helps. This macro reserves MAX elements on the stack 
+every time when entering the function context. The upper limit MAX is defined at compile time. 
+At runtime the  sequence is constructed, reading the elements from the iterator and placing them
+in the reserved stack-memory. When the function context is left, the stack-memory is released.
+The macro seqdef_try! will declare the specified identifier as type Result<Seq<T>>. 
+Rolling out the values from iterator into the reserved stack may fail if the iterator is empty, 
+or if the amount exceeds MAX. The value of `x` must be checked after construction with `seqdef_try!`.
+
+Note! No matter the number of elements returned by the iterator, the macro is always reserving 
+stack-memory for MAX elements. If you choose too large, the stack might run out of memory.
+The iterator provided to the macro may consume the underlying container-elements or clone each element.
+```rust
+  use std::mem;
+  use std::ptr;
+  
+  fn large_seq_rollout_on_stack() {
+      const MAX: usize = 2000;
+      let large_list: &[i32] = &[42; MAX];
+      // define x of type Result<Seq<i32>>, read all elements from array and place them on stack as sequence
+      seqdef_try!(x, i32, MAX; empty() => large_list.iter());
+      // handling the result, Ok or Error
+      match &x {
+          &Ok(ref sequence) => println!("large sum {}", (&*sequence).into_iter().fold(0i32, ops::Add::add)),
+          &Err(reason) => println!("roll out failed due to {}", reason)
+      }
+  }
 ```

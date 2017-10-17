@@ -4,15 +4,15 @@
 /// in nested function calls using stack-allocated memory.
 ///
 /// You can use Seq in your project adding the following dependency to your Cargo.toml file:
-/// ```cargo
+/// ```toml
 /// ## Cargo.toml file
-/// ...
 /// [dependencies]
-/// seq = "0.2.0"
+/// seq = "0.3.0"
 /// ```
 
 use std::fmt;
 use std::iter::Iterator;
+
 
 /// The data type Seq is a generic data container providing linked list functionality.
 /// _Seq_ is a sequence of data of type T and lifetime 'a.
@@ -65,6 +65,7 @@ use std::iter::Iterator;
 ///       &Seq::ConsOwn(ref ft, ref rt) => Option::Some(*ft)
 ///  }
 /// ```
+#[derive(Clone)]
 pub enum Seq<'a, T: 'a> {
     Empty,
     ConsRef(T, &'a Seq<'a, T>),
@@ -84,14 +85,11 @@ pub enum Seq<'a, T: 'a> {
 /// `seqdef!(u; &s => 3, 4, 5);`
 #[macro_export]
 macro_rules! seqdef {
-  ($id:ident; $ft:expr ) => {
-        let $id =  $crate::Seq::ConsRef( $ft, $crate::empty() );
-   };
 
-   ($id:ident; $ft0:expr, $($ftn:expr),* ) => {
-        let $id =  $crate::Seq::ConsRef( $ft0, $crate::empty() );
+   ($id:ident; $($ftx:expr),* ) => {
+        let $id =  $crate::Seq::Empty;
         $(
-        let $id =  $crate::Seq::ConsRef( $ftn, & $id );
+        let $id =  $crate::Seq::ConsRef( $ftx, & $id );
         )*
    };
 
@@ -99,17 +97,116 @@ macro_rules! seqdef {
         let $id =  $crate::Seq::ConsRef( $ft, $rt );
    };
 
-   ($id:ident; $rt:expr => $ft0:expr, $($ftn:expr),* ) => {
+   ($id:ident; $rt:expr => $ft0:expr, $($ftx:expr),* ) => {
         let $id =  $crate::Seq::ConsRef( $ft0, $rt );
         $(
-        let $id =  $crate::Seq::ConsRef( $ftn, & $id );
+        let $id =  $crate::Seq::ConsRef( $ftx, & $id );
         )*
+   };
+}
+
+/// The macro `seqdef_try!` places values from iterator as sequence on stack.
+///
+/// This macro reserves MAX elements on the stack
+/// every time when entering the function context. The upper limit MAX is defined at compile time.
+/// At runtime the  sequence is constructed, reading the elements from the iterator and placing them
+/// in the reserved stack-memory. When the function context is left, the stack-memory is released.
+/// The macro seqdef_try! will declare the specified identifier as type Result<Seq<T>>.
+/// Rolling out the values from iterator into the reserved stack may fail if the iterator is empty,
+/// or if the amount exceeds MAX. The value of `x` must be checked after construction with `seqdef_try!`.
+///
+/// Note! No matter the number of elements returned by the iterator, the macro is always reserving
+/// stack-memory for MAX elements. If you choose too large, the stack might run out of memory.
+/// The iterator provided to the macro may consume the underlying container-elements or clone each element.
+///
+/// Example
+//```rust
+//use std::mem;
+/// use std::ptr;
+///
+/// fn large_seq_rollout_on_stack() {
+///     const MAX: usize = 2000;
+///     let large_list: &[i32] = &[42; MAX];
+///     // define x of type Result<Seq<i32>>, read all elements from array and place them on stack as sequence
+///     seqdef_try!(x, i32, MAX; empty() => large_list.iter());
+///     // handling the result, Ok or Error
+///     match &x {
+///         &Ok(ref sequence) => println!("large sum {}", (&*sequence).into_iter().fold(0i32, ops::Add::add)),
+///         &Err(reason) => println!("roll out failed due to {}", reason)
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! seqdef_try {
+  ($id:ident, $typ:ty, $max:expr; $rt:expr => $iterator:expr ) => {
+        // array of size max-1, as the last Seq element will be outside of array
+        let mut _a: [Seq<$typ>; ($max)-1 ];
+        // sadly _a = Default::default() is working only array with 32 elements, the moment writing
+        // therefor using this unsafe method for now
+        unsafe {
+            _a = mem::uninitialized();
+
+            // DANGER ZONE: if anything panics or otherwise
+            // incorrectly reads the array here, we will have
+            // Undefined Behavior.
+
+            // It's ok to mutably iterate the data, since this
+            // doesn't involve reading it at all.
+            // (ptr and len are statically known for arrays)
+            for elem in &mut _a[..] {
+                // *elem = Seq::Empty would try to drop the
+                // uninitialized memory at `elem` -- bad!
+                //
+                // Seq::Empty doesn't allocate or do really
+                // anything. It's only safe to call here
+                // because we know it won't panic.
+                ptr::write(elem, $crate::Seq::Empty );
+            }
+
+            // SAFE ZONE: everything is initialized.
+        }
+
+
+        let $id: Result<Seq<$typ>, &str> = {
+            let nitems = $iterator.len();
+            let mut top: Result<Seq<$typ>, &str> = Result::Err("list must not be empty");
+
+            if nitems>$max {
+                top = Result::Err("list exceeding max number");
+            }
+            else {
+            for (i, item) in $iterator.enumerate() {
+                // special case: first and only element in list => define top
+                if i==0 && nitems==1 {
+                    top = Result::Ok($crate::Seq::ConsRef( *item, $rt ));
+                }
+                // last element in list => define top
+                else if i==nitems-1 {
+                    unsafe { // using raw-ptr as assignment to borrowed array is not possible
+                        let pre: *const Seq<$typ> = &_a[i-1];
+                        top = Result::Ok($crate::Seq::ConsRef( *item, &*pre ));
+                    }
+                }
+                // first element in list, being placed in first slot of array
+                else if i==0 {
+                    _a[i] = $crate::Seq::ConsRef( *item, $rt);
+                }
+                // element in the middle, located in array[idx] and referencing previous one idx-1
+                else {
+                    unsafe { // using raw-ptr as assignment to borrowed array is not possible
+                      let pre: *const Seq<$typ> = &_a[i-1];
+                      _a[i] = $crate::Seq::ConsRef( *item, &*pre);
+                   }
+                }
+            }
+            }
+            top
+        };
    };
 }
 
 /// Function returns static reference to empty list
 pub fn empty<T>() -> &'static Seq<'static, T> { &Seq::Empty }
-
 
 /// By default a sequence is empty
 impl<'a, T> Default for Seq<'a, T> {
@@ -190,6 +287,9 @@ mod tests {
     use super::empty;
     use std::ops;
 
+    // for seqdef_try
+    use std::ptr;
+    use std::mem;
 
     fn recurs(val: u32, max: u32, base: &Seq<u32>) {
         let ext = Seq::ConsRef(val, base);
@@ -357,5 +457,30 @@ mod tests {
 
         seqdef!(w; 0, 1, 2, 3);
         assert_eq!(&w, &u);
+
+
+        seqdef_try!(x, i32, 4; empty() => [ 0i32, 1, 2, 3].iter());
+        assert_eq!(x.ok(), Some(u));
+
+        let empty_list: &[i32] = &[];
+        // failing, the list must contain one element at least
+        seqdef_try!(x, i32, 4; empty() => empty_list.iter());
+        assert_eq!(x.is_err(), true);
+
+        // exceeding max elements 4
+        seqdef_try!(x, i32, 4; empty() => [0i32, 1, 2, 3, 4].iter());
+        assert_eq!(x.is_err(), true);
+
+
+        // large number of elements 2000
+        const LARGE_LIST_LEN: usize = 2000;
+        let large_list: &[i32] = &[42; LARGE_LIST_LEN];
+        seqdef_try!(x, i32, LARGE_LIST_LEN; empty() => large_list.iter());
+        assert_eq!(x.is_ok(), true);
+        match &x {
+            &Ok(ref sequence) => println!("large sum {}", (&*sequence).into_iter().fold(0i32, ops::Add::add)),
+            &Err(reason) => println!("roll out failed due to {}", reason)
+        }
+        assert_eq!(x.unwrap().into_iter().fold(0i32, ops::Add::add), 2000*42);
     }
 }
