@@ -1,7 +1,8 @@
 /// The module _seq_ provides a generic sequence container _Seq_ for Rust.
 ///
-/// _Seq_ is a generic, lightweight sequence container (LIFO), intended for the context management
-/// in nested function calls using stack-allocated memory.
+/// _Seq_ is a lightweight container of data sequences (LIFO), managing dynamic list without
+/// dynamic memory allocation involved. Sequences are stored in stack frames of function contexts.
+/// Each element of a sequence has an individual lifetime `'a` managed by the Rust compiler.
 ///
 /// You can use Seq in your project adding the following dependency to your Cargo.toml file:
 /// ```toml

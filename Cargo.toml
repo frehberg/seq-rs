@@ -1,8 +1,8 @@
 [package]
 name = "seq"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Frank Rehberger <frehberg@gmail.com>"]
-description = "Generic sequence container implementation for Rust."
+description = "seq provides a lightweight container Seq<'a, T> of data sequences (LIFO), managing dynamic list without dynamic memory allocation involved. Sequences are stored in stack frames of function contexts. Each element of a sequence has an individual lifetime `'a` managed by the Rust compiler."
 license = "Apache-2.0"
 documentation = "https://github.com/frehberg/seq-rs.git"
 homepage = "https://github.com/frehberg/seq-rs.git"

@@ -2,16 +2,19 @@
 
 The module _seq_ provides a generic sequence container _Seq_ for Rust.
 
-_Seq_ is a lightweight container of data sequences, data being stacked on top of each other (LIFO).
+_Seq_ is a lightweight container of data sequences (LIFO), managing dynamic list without
+dynamic memory allocation involved. Sequences are stored in stack frames of function contexts.
+Each element of a sequence has an individual lifetime `'a` managed by the Rust compiler.
 
 Add the following dependency to your Cargo.toml file:
 ```toml
 ## Cargo.toml file
 [dependencies]
-seq = "0.3.0"
+seq = "0.3.1"
 ```
 ## Definition
-_Seq_ is defined as generic enum. _Seq_ is a sequence of data of type T and lifetime 'a.
+_Seq_ is defined as generic enum. _Seq_ is a sequence of data of type T and the top most
+element has lifetime 'a.
 
 Either a sequence is  _Empty_ or a sequence is a construction of a new value
 (head or first (ft)) on-top of another sequence (the tail or rest (rt)). The lifetime of the tail must be at least as
