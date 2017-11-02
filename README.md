@@ -56,19 +56,77 @@ memory-allocation (heap) involved.
 
 The sequence type `Seq` implements the trait `IntoIterator`, enabling the usage of Rust's iterator framework.
 
+## Benchmarks
+The data structure `Seq` implements a linked list.  It ranks between two kinds of collections, at first those 
+using consecutive memory such as native arrays and `Vec`, and second those collections using non-consecutive
+dynamic-memory such as `LinkedList`. 
+
+The collection `Seq` is a recursive data structure that can be used without dynamic memory allocation
+(similar to native arrays), but it permits linked lists similar to `LinkedList`. Due to the additional overhead
+the collection `Seq` is around five times slower compared to memory intensive operations using native arrays.
+
+The following benchmarks is memory-intensive and benefits from consecutive memory. 
+It illustrates the overhead of `Seq` compared to native arrays and `Vec`, and the cost storing data in stack-frames.
+
+The test performs a recursive function-call, each call adding a new element to a list (starting with 0 and incrementing each step), 
+summing up all elements in the list. Finally all results are cumulated. 
+The test is performed for lists with maximum length 128, and 256 and 512.
+
+Each element of the list represents a recursive function call, and corresponding stack-frame. The additional overhead
+for the data-type `Seq` in each stack-frame and the non-consecutive memory might explain the overhead of factor 12 to 20
+compared to native arrays and `Vec`. Performance of `Seq` (bench_seq_) can be compared to the benchmarks of
+`LinkedList` (bench_list_). The difference is that 'Seq' does not require dynamic memory allocation.
+
+In terms of memory-footprint, each Seq-element introduces an overhead of around 16 bytes on 64bit architectures,
+for the enum-discriminator and the reference to the _tail_, whereas in this test the payload of each
+Seq-element is 4 bytes only (`Seq<u32>`).
+```commandline
+test tests::bench_array_128 ... bench:       1,111 ns/iter (+/- 28)
+test tests::bench_array_256 ... bench:       4,188 ns/iter (+/- 173)
+test tests::bench_array_512 ... bench:      12,576 ns/iter (+/- 258)
+test tests::bench_list_128  ... bench:      14,053 ns/iter (+/- 385)
+test tests::bench_list_256  ... bench:      51,068 ns/iter (+/- 757)
+test tests::bench_list_512  ... bench:     187,861 ns/iter (+/- 2,688)
+test tests::bench_seq_128   ... bench:      16,544 ns/iter (+/- 177)
+test tests::bench_seq_256   ... bench:      63,611 ns/iter (+/- 988)
+test tests::bench_seq_512   ... bench:     253,374 ns/iter (+/- 11,849)
+test tests::bench_vec_128   ... bench:       1,823 ns/iter (+/- 54)
+test tests::bench_vec_256   ... bench:       5,974 ns/iter (+/- 191)
+test tests::bench_vec_512   ... bench:      19,545 ns/iter (+/- 3,061)
+```
+As a  conclusion of these benchmarks, the collection `Seq` should be used:
+* for elements exceeding the overhead of 16 bytes.
+* for hierarchical data, corresponding to stack-frames
+* shared data-sequences, compacting data
+* for local temporary lists
+* for collections occupying space for exactly N elements (plus overhead), with N unknown at compile time.
+* avoiding usage of heap-memory as required for `Vec` or `LinkedList`
+
 ## Example: Stack-only Allocated
-A stack allocated sequnece is based on the variants Seq::Empty and Seq::ConsRef only
+A stack allocated sequence is based on the variants Seq::Empty and Seq::ConsRef only. The following lines are creating 
+a sequence`<>|1|2|3` in stack frame of function `myfun()`. The sequence is the input parameter to function `myfunNested()`
+that is construction a new sequence `t`, adding two more elements to sequence `s`. The elements of `s` are a sub-sequence 
+of `t`.
 ```rust
 extern crate seq;
 use seq::Seq;
 
 fn myfun() {
-   // constructing the sequence seq!(3,2,1)
+   // constructing the sequence <>|1|2|3
    let s0: Seq<u32> = Seq::Empty();
    let s1: Seq<u32> = Seq::ConsRef(1, &s0);
    let s3: Seq<u32> = Seq::ConsRef(2, &s1);
    let s3: Seq<u32> = Seq::ConsRef(3, &s2);
-   println!("seq {:?}", &s3);
+   myfunNested(&s3);
+   println!("head of sequence s3 is {:?}", &s3); // printing 3
+}
+
+fn myfunNested(s: &Seq<u32>)
+{
+    // extend the sequence to <>|1|2|3|4|5
+   let t: Seq<u32> = Seq::ConsRef(4, s);
+   let t: Seq<u32> = Seq::ConsRef(5, &t); // re-using the identifier `t`
+   println!("head of sequence t is {:?}", &t); // printing 5
 }
 ```
 
@@ -79,6 +137,7 @@ extern crate seq;
 use seq::Seq;
 
 fn myfun() {
+   // constructing the sequence <>|0|1|2|3
    let s0: Seq<u32> = Seq::Empty();                        // stack
    let s1: Seq<u32> = Seq::ConsRef(0, &s0);                // stack
    let s2: Box<Seq<u32>> = Box::new(Seq::ConsRef(1, &s1)); // heap
@@ -108,7 +167,7 @@ extern crate seq;
 use seq::Seq;
 use std::ops;
 
-// Recursive, nested invocation while val<max. Each function-call sums up the sequence.
+// Recursive, nested invocation while val<max. Each function-call adds a new seq-head and cumulates all values of the sequence (fold).
 fn recurs(val: u32, max: u32, tail: &Seq<u32>) {
    if val < max {
       let sequence = Seq::ConsRef(val, tail);
@@ -169,7 +228,7 @@ seqdef!(t; 0, 1, 2);
 ```
 
 ### Macro 3: Creating a seq variable u, using Seq `s` of example 1 as tail, the head will be `5`.
-On top of sequence s, constructing a sequence u := &s|3|4|5 the effictive sequence is u := <>|0|1|2|3|4|5; 
+On top of sequence s, constructing a sequence u := &s|3|4|5, the effictive sequence is u := <>|0|1|2|3|4|5; 
 ```rust
 seqdef!(u; &s => 3, 4, 5);
 ```
