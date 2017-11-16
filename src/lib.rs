@@ -1,4 +1,4 @@
-#![feature(test)]
+#![cfg_attr(feature = "benchmark", feature(test))]
 
 /// The module _seq_ provides a generic sequence container _Seq_ for Rust.
 ///
@@ -13,7 +13,6 @@
 /// seq = "0.3.0"
 /// ```
 
-extern crate test;
 use std::fmt;
 use std::iter::Iterator;
 
@@ -290,9 +289,7 @@ mod tests {
     use super::SeqIterator;
     use super::empty;
     use std::ops;
-    extern crate test;
-    use std::vec;
-    
+
     // for seqdef_try
     use std::ptr;
     use std::mem;
@@ -490,13 +487,130 @@ mod tests {
         assert_eq!(x.unwrap().into_iter().fold(0i32, ops::Add::add), 2000*42);
     }
 
-  
+
+
+}
+
+
+#[cfg(all(feature = "benchmark", test))]
+mod benchmark {
+    extern crate test;
+
+    use super::Seq;
+    use super::empty;
+    use std::ops;
+    use std::vec;
+    use std::collections::LinkedList;
 
     // Returns cumulation of  0, 0+1, 0+1+2, 0+1+2+3, ... 0+1+2+..+(N-1)
     fn sum_of_sums(n:u32) -> u32
     {
         let cumulated = (n*(n+1)*((2*n)+1)/6) + ((n*(n+1))/2);
         cumulated/2
+    }
+
+    // Recursive function, adding an element and cumulate the sums, until N-1 is reached.
+    fn recurs_stack_list(l: &mut LinkedList<u32>, cnt: u32, n:u32) -> u32 {
+        if cnt < n {
+            l.push_back(cnt);
+            let sum = l.iter().fold(0u32, ops::Add::add);
+            let r = sum + recurs_stack_list( l, cnt + 1, n);
+            l.pop_back();
+            r
+        } else {
+            0
+        }
+    }
+
+    #[bench]
+    fn bench_list_008(b: &mut test::Bencher) {
+        const N: u32 = 8;
+
+        b.iter(|| {
+            let mut l = LinkedList::new();
+
+            let sum = recurs_stack_list(&mut l, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_list_016(b: &mut test::Bencher) {
+        const N: u32 = 16;
+
+        b.iter(|| {
+            let mut l = LinkedList::new();
+
+            let sum = recurs_stack_list(&mut l, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_list_032(b: &mut test::Bencher) {
+        const N: u32 = 32;
+
+        b.iter(|| {
+            let mut l = LinkedList::new();
+
+            let sum = recurs_stack_list(&mut l, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_list_064(b: &mut test::Bencher) {
+        const N: u32 = 64;
+
+        b.iter(|| {
+            let mut l = LinkedList::new();
+
+            let sum = recurs_stack_list(&mut l, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_list_128(b: &mut test::Bencher) {
+        const N: u32 = 128;
+
+        b.iter(|| {
+            let mut l = LinkedList::new();
+
+            let sum = recurs_stack_list(&mut l, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_list_256(b: &mut test::Bencher) {
+        const N: u32 = 256;
+
+        b.iter(|| {
+            let mut l = LinkedList::new();
+
+            let sum = recurs_stack_list(&mut l, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_list_512(b: &mut test::Bencher) {
+        const N: u32 = 512;
+
+        b.iter(|| {
+            let mut l = LinkedList::new();
+
+            let sum = recurs_stack_list(&mut l, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
     }
 
     // Recursive function, adding an element and cumulate the sums, until N-1 is reached.
@@ -513,6 +627,54 @@ mod tests {
     }
 
     #[bench]
+    fn bench_vec_008(b: &mut test::Bencher) {
+        const N: u32 = 8;
+
+        b.iter(|| {
+            let mut v = vec::Vec::new();
+            let sum = recurs_stack_vec(&mut v, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_vec_016(b: &mut test::Bencher) {
+        const N: u32 = 16;
+
+        b.iter(|| {
+            let mut v = vec::Vec::new();
+            let sum = recurs_stack_vec(&mut v, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_vec_032(b: &mut test::Bencher) {
+        const N: u32 = 32;
+
+        b.iter(|| {
+            let mut v = vec::Vec::new();
+            let sum = recurs_stack_vec(&mut v, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_vec_064(b: &mut test::Bencher) {
+        const N: u32 = 64;
+
+        b.iter(|| {
+            let mut v = vec::Vec::new();
+            let sum = recurs_stack_vec(&mut v, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
     fn bench_vec_128(b: &mut test::Bencher) {
         const N: u32 = 128;
 
@@ -520,6 +682,7 @@ mod tests {
             let mut v = vec::Vec::new();
             let sum = recurs_stack_vec(&mut v, 0, N);
             assert_eq!(sum, sum_of_sums(N-1));
+            sum
         });
     }
 
@@ -531,6 +694,7 @@ mod tests {
             let mut v = vec::Vec::new();
             let sum = recurs_stack_vec(&mut v, 0, N);
             assert_eq!(sum, sum_of_sums(N-1));
+            sum
         });
     }
 
@@ -542,6 +706,7 @@ mod tests {
             let mut v = vec::Vec::new();
             let sum = recurs_stack_vec(&mut v, 0, N);
             assert_eq!(sum, sum_of_sums(N-1));
+            sum
         });
     }
 
@@ -549,11 +714,56 @@ mod tests {
     fn recurs_stack_seq(s: &Seq<u32>, cnt: u32, n:u32) -> u32 {
         if cnt < n {
             let ext_s = Seq::ConsRef(cnt, s);
+
             let sum = ext_s.into_iter().fold(0u32, ops::Add::add);
             sum + recurs_stack_seq(&ext_s, cnt + 1, n)
         } else {
             0
         }
+    }
+
+    #[bench]
+    fn bench_seq_008(b: &mut test::Bencher) {
+        const N: u32 = 8;
+
+        b.iter(|| {
+            let sum = recurs_stack_seq(empty(), 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_seq_016(b: &mut test::Bencher) {
+        const N: u32 = 16;
+
+        b.iter(|| {
+            let sum = recurs_stack_seq(empty(), 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_seq_032(b: &mut test::Bencher) {
+        const N: u32 = 32;
+
+        b.iter(|| {
+            let sum = recurs_stack_seq(empty(), 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_seq_064(b: &mut test::Bencher) {
+        const N: u32 = 64;
+
+        b.iter(|| {
+            let sum = recurs_stack_seq(empty(), 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
     }
 
     #[bench]
@@ -563,8 +773,10 @@ mod tests {
         b.iter(|| {
             let sum = recurs_stack_seq(empty(), 0, N);
             assert_eq!(sum, sum_of_sums(N-1));
+            sum
         });
     }
+
 
     #[bench]
     fn bench_seq_256(b: &mut test::Bencher) {
@@ -573,6 +785,7 @@ mod tests {
         b.iter(|| {
             let sum = recurs_stack_seq(empty(), 0, N);
             assert_eq!(sum, sum_of_sums(N-1));
+            sum
         });
     }
 
@@ -583,6 +796,7 @@ mod tests {
         b.iter(|| {
             let sum = recurs_stack_seq(empty(), 0, N);
             assert_eq!(sum, sum_of_sums(N-1));
+            sum
         });
     }
 
@@ -599,6 +813,54 @@ mod tests {
     }
 
     #[bench]
+    fn bench_array_008(b: &mut test::Bencher) {
+        const N: u32 = 8;
+        b.iter(|| {
+            let mut a: [u32; N as usize] = [0; N as usize];
+
+            let sum = recurs_stack_array(&mut a, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_array_016(b: &mut test::Bencher) {
+        const N: u32 = 16;
+        b.iter(|| {
+            let mut a: [u32; N as usize] = [0; N as usize];
+
+            let sum = recurs_stack_array(&mut a, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_array_032(b: &mut test::Bencher) {
+        const N: u32 = 32;
+        b.iter(|| {
+            let mut a: [u32; N as usize] = [0; N as usize];
+
+            let sum = recurs_stack_array(&mut a, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
+    fn bench_array_064(b: &mut test::Bencher) {
+        const N: u32 = 64;
+        b.iter(|| {
+            let mut a: [u32; N as usize] = [0; N as usize];
+
+            let sum = recurs_stack_array(&mut a, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+    #[bench]
     fn bench_array_128(b: &mut test::Bencher) {
         const N: u32 = 128;
         b.iter(|| {
@@ -606,8 +868,10 @@ mod tests {
 
             let sum = recurs_stack_array(&mut a, 0, N);
             assert_eq!(sum, sum_of_sums(N-1));
+            sum
         });
     }
+
     #[bench]
     fn bench_array_256(b: &mut test::Bencher) {
         const N: u32 = 256;
@@ -616,6 +880,7 @@ mod tests {
 
             let sum = recurs_stack_array(&mut a, 0, N);
             assert_eq!(sum, sum_of_sums(N-1));
+            sum
         });
     }
     #[bench]
@@ -626,8 +891,8 @@ mod tests {
 
             let sum = recurs_stack_array(&mut a, 0, N);
             assert_eq!(sum, sum_of_sums(N-1));
+            sum
         });
     }
-
 
 }

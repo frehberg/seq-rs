@@ -9,3 +9,6 @@ homepage = "https://github.com/frehberg/seq-rs.git"
 repository = "https://github.com/frehberg/seq-rs.git"
 
 [dependencies]
+
+[features]
+benchmark = []

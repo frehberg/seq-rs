@@ -6,11 +6,13 @@ _Seq_ is a lightweight container of data sequences (LIFO), managing dynamic list
 dynamic memory allocation involved. Sequences are stored in stack frames of function contexts.
 Each element of a sequence has an individual lifetime `'a` managed by the Rust compiler.
 
-Add the following dependency to your Cargo.toml file:
+## Usage
+
+Put this in your Cargo.toml:
 ```toml
 ## Cargo.toml file
 [dependencies]
-seq = "0.3.1"
+seq = "0.3"
 ```
 ## Definition
 _Seq_ is defined as generic enum. _Seq_ is a sequence of data of type T and the top most
@@ -57,52 +59,62 @@ memory-allocation (heap) involved.
 The sequence type `Seq` implements the trait `IntoIterator`, enabling the usage of Rust's iterator framework.
 
 ## Benchmarks
-The data structure `Seq` implements a linked list.  It ranks between two kinds of collections, at first those 
-using consecutive memory such as native arrays and `Vec`, and second those collections using non-consecutive
-dynamic-memory such as `LinkedList`. 
+The data structure `Seq` implements a linked list. In terms of performance it cannot compete with a native
+array. But, `Seq` ranks between the containers `Vec` and `LinkedList`.
 
-The collection `Seq` is a recursive data structure that can be used without dynamic memory allocation
-(similar to native arrays), but it permits linked lists similar to `LinkedList`. Due to the additional overhead
-the collection `Seq` is around five times slower compared to memory intensive operations using native arrays.
+The benchmark is a memory-intensive, recursive function call and benefits from consecutive memory;
+each recursive function-call a new integer element is appended and an iterator is cumulating all elements.
 
-The following benchmarks is memory-intensive and benefits from consecutive memory. 
-It illustrates the overhead of `Seq` compared to native arrays and `Vec`, and the cost storing data in stack-frames.
+As the benchmark-chart demonstrates, the container `Seq` performs better than `Vec` and`LinkedList` for up to
+`N=16` elements; and even shows better performance than `LinkedList` if less than `N=64` elements. The benchmark
+is performed for up to N= 8, 16, 32, 64, 128, 256, 512.
 
-The test performs a recursive function-call, each call adding a new element to a list (starting with 0 and incrementing each step), 
-summing up all elements in the list. Finally all results are cumulated. 
-The test is performed for lists with maximum length 128, and 256 and 512.
+```> cargo bench --features benchmark```
 
-Each element of the list represents a recursive function call, and corresponding stack-frame. The additional overhead
-for the data-type `Seq` in each stack-frame and the non-consecutive memory might explain the overhead of factor 12 to 20
-compared to native arrays and `Vec`. Performance of `Seq` (bench_seq_) can be compared to the benchmarks of
-`LinkedList` (bench_list_). The difference is that 'Seq' does not require dynamic memory allocation.
-
-In terms of memory-footprint, each Seq-element introduces an overhead of around 16 bytes on 64bit architectures,
-for the enum-discriminator and the reference to the _tail_, whereas in this test the payload of each
-Seq-element is 4 bytes only (`Seq<u32>`).
 ```commandline
-test tests::bench_array_128 ... bench:       1,111 ns/iter (+/- 28)
-test tests::bench_array_256 ... bench:       4,188 ns/iter (+/- 173)
-test tests::bench_array_512 ... bench:      12,576 ns/iter (+/- 258)
-test tests::bench_list_128  ... bench:      14,053 ns/iter (+/- 385)
-test tests::bench_list_256  ... bench:      51,068 ns/iter (+/- 757)
-test tests::bench_list_512  ... bench:     187,861 ns/iter (+/- 2,688)
-test tests::bench_seq_128   ... bench:      16,544 ns/iter (+/- 177)
-test tests::bench_seq_256   ... bench:      63,611 ns/iter (+/- 988)
-test tests::bench_seq_512   ... bench:     253,374 ns/iter (+/- 11,849)
-test tests::bench_vec_128   ... bench:       1,823 ns/iter (+/- 54)
-test tests::bench_vec_256   ... bench:       5,974 ns/iter (+/- 191)
-test tests::bench_vec_512   ... bench:      19,545 ns/iter (+/- 3,061)
+test benchmark::bench_array___8 ... bench:           0 ns/iter (+/- 0)
+test benchmark::bench_array__16 ... bench:           0 ns/iter (+/- 0)
+test benchmark::bench_array__32 ... bench:         196 ns/iter (+/- 9)
+test benchmark::bench_array__64 ... bench:         450 ns/iter (+/- 29)
+test benchmark::bench_array_128 ... bench:       1,109 ns/iter (+/- 98)
+test benchmark::bench_array_256 ... bench:       3,125 ns/iter (+/- 50)
+test benchmark::bench_array_512 ... bench:      12,053 ns/iter (+/- 230)
+test benchmark::bench_list___8  ... bench:         215 ns/iter (+/- 4)
+test benchmark::bench_list__16  ... bench:         527 ns/iter (+/- 10)
+test benchmark::bench_list__32  ... bench:       1,408 ns/iter (+/- 461)
+test benchmark::bench_list__64  ... bench:       4,209 ns/iter (+/- 86)
+test benchmark::bench_list_128  ... bench:      13,638 ns/iter (+/- 884)
+test benchmark::bench_list_256  ... bench:      52,786 ns/iter (+/- 4,552)
+test benchmark::bench_list_512  ... bench:     188,453 ns/iter (+/- 3,053)
+test benchmark::bench_seq___8   ... bench:          53 ns/iter (+/- 1)
+test benchmark::bench_seq__16   ... bench:         191 ns/iter (+/- 10)
+test benchmark::bench_seq__32   ... bench:       1,081 ns/iter (+/- 30)
+test benchmark::bench_seq__64   ... bench:       4,432 ns/iter (+/- 82)
+test benchmark::bench_seq_128   ... bench:      16,749 ns/iter (+/- 209)
+test benchmark::bench_seq_256   ... bench:      63,775 ns/iter (+/- 528)
+test benchmark::bench_seq_512   ... bench:     247,919 ns/iter (+/- 2,183)
+test benchmark::bench_vec___8   ... bench:         111 ns/iter (+/- 3)
+test benchmark::bench_vec__16   ... bench:         221 ns/iter (+/- 4)
+test benchmark::bench_vec__32   ... bench:         398 ns/iter (+/- 11)
+test benchmark::bench_vec__64   ... bench:         735 ns/iter (+/- 19)
+test benchmark::bench_vec_128   ... bench:       1,634 ns/iter (+/- 49)
+test benchmark::bench_vec_256   ... bench:       4,774 ns/iter (+/- 103)
+test benchmark::bench_vec_512   ... bench:      15,306 ns/iter (+/- 250)
 ```
-As a  conclusion of these benchmarks, the collection `Seq` should be used:
-* for elements exceeding the overhead of 16 bytes.
-* for hierarchical data, corresponding to stack-frames
-* shared data-sequences, compacting data
-* for local temporary lists
-* for collections occupying space for exactly N elements (plus overhead), with N unknown at compile time.
-* avoiding usage of heap-memory as required for `Vec` or `LinkedList`
 
-## Example: Stack-only Allocated
+![Benchmark chart](./doc/bench-chart.jpg)
+
+Every element of `Seq` is causing overhead of ca 16 bytes for the discriminator, and the reference
+to the tail.
+
+## Conclusion
+These benchmarks show, the collection `Seq` shows better performance than `Vec` for 16 elements or less, and even
+better performance than `LinkedList` for 64 elements or less. In this range `Seq` benefits from stack-memory.
+When `N>64` performance drops, probably caused by page-faults and the need to request new memory-pages from OS.
+
+## Examples
+
+### Example: Stack-only Allocated
 A stack allocated sequence is based on the variants Seq::Empty and Seq::ConsRef only. The following lines are creating 
 a sequence`<>|1|2|3` in stack frame of function `myfun()`. The sequence is the input parameter to function `myfunNested()`
 that is construction a new sequence `t`, adding two more elements to sequence `s`. The elements of `s` are a sub-sequence 
@@ -130,7 +142,7 @@ fn myfunNested(s: &Seq<u32>)
 }
 ```
 
-## Example: Stack-and-Heap Allocated
+### Example: Stack-and-Heap Allocated
 A sequence can be a mixture of stack-allocated and heap-allocated data elements. The following sequence
 ```rust
 extern crate seq;
@@ -146,7 +158,7 @@ fn myfun() {
    println!("seq {:?}", &s4);
 }
 ```
-## Example: Pattern Matching
+### Example: Pattern Matching
 Pattern-matching is used to de-construct a sequence.
 ```rust
 extern crate seq;
@@ -160,7 +172,7 @@ fn head(sequence: &Seq<u32>) -> Option<u32> {
    }
 }
 ```
-## Example: Dynamic sequence in nested/recursive function-calls
+### Example: Dynamic sequence in nested/recursive function-calls
 Sequences can be used to manage state in nested function calls. This code demonstrates how the iterator is used.
 ```rust
 extern crate seq;
@@ -180,7 +192,7 @@ fn main() {
     recurs(0, 10, seq::empty());
 }
 ```
-## Example: Dynamic sequence in nested/recursive function-calls, combined with heap-alloc. data
+### Example: Dynamic sequence in nested/recursive function-calls, combined with heap-alloc. data
 'Seq' permits mixture of stack allocated data and heap allocated data within a single linked list.
 The following code is a variation of previous sample, just adding two heap-allocated elements onto top
 of sequence finally. This code demonstrates how the iterator is used.
@@ -210,7 +222,7 @@ fn main() {
    recurs(0, 10, seq::empty());
 }
 ```
-## Example: Demonstrating the macro seqdef!
+## Macros
 The `seqdef!` macro defines a stack-allocated sequence variable using the speficied data list,
 the last data item in the list will be the top most in the sequence (head). The macro can be used to
 create a new sequence on top of another one (tail).
