@@ -12,7 +12,7 @@ Put this in your Cargo.toml:
 ```toml
 ## Cargo.toml file
 [dependencies]
-seq = "0.3"
+seq = "0.4"
 ```
 ## Definition
 _Seq_ is defined as generic enum. _Seq_ is a sequence of data of type T and the top most

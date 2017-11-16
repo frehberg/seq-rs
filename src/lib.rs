@@ -6,11 +6,11 @@
 /// dynamic memory allocation involved. Sequences are stored in stack frames of function contexts.
 /// Each element of a sequence has an individual lifetime `'a` managed by the Rust compiler.
 ///
-/// You can use Seq in your project adding the following dependency to your Cargo.toml file:
+/// Put this in your Cargo.toml:
 /// ```toml
 /// ## Cargo.toml file
 /// [dependencies]
-/// seq = "0.3.0"
+/// seq = "0.4"
 /// ```
 
 use std::fmt;
@@ -73,6 +73,28 @@ pub enum Seq<'a, T: 'a> {
     Empty,
     ConsRef(T, &'a Seq<'a, T>),
     ConsOwn(T, Box<Seq<'a, T>>),
+}
+
+/// Seq method implementations
+impl<'a, T: 'a> Seq<'a, T> {
+    /// Returns a reference to the head-element
+    pub fn head (&'a self) -> Option<&'a T> {
+        match self {
+            &Seq::Empty => Option::None,
+            &Seq::ConsRef(ref ft1, _) => Option::Some(&*ft1),
+            &Seq::ConsOwn(ref ft1, _) => Option::Some(&*ft1),
+        }
+    }
+
+    /// Returns reference to the tail
+    pub fn tail (&'a self) -> Option<&'a Seq<T>> {
+        match self {
+            &Seq::Empty => Option::None,
+            &Seq::ConsRef(_, ref rt1) => Option::Some(*rt1),
+            &Seq::ConsOwn(_, ref rt1) => Option::Some(&**rt1),
+        }
+    }
+
 }
 
 /// The seqdef! macro defines a stack-allocated sequence variable for the speficied data list,
@@ -421,6 +443,7 @@ mod tests {
 
         assert_eq!(&s4, &s4);
     }
+
     #[test]
     fn test_iter() {
         let s0: &Seq<u32> = empty();
@@ -487,7 +510,19 @@ mod tests {
         assert_eq!(x.unwrap().into_iter().fold(0i32, ops::Add::add), 2000*42);
     }
 
+    #[test]
+    fn test_head_tail() {
+        let s: &Seq<u32> = empty();
+        let s = Seq::ConsRef(1u32, s);
+        let s = Seq::ConsRef(2u32, &s);
+        let s = Seq::ConsRef(3u32, &s);
 
+        let ft = s.head();
+        let rt = s.tail();
+
+        assert_eq!(ft.unwrap(), &3);
+        assert_eq!(rt.unwrap().head().unwrap(), &2);
+    }
 
 }
 
