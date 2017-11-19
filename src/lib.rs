@@ -145,8 +145,8 @@ macro_rules! seqdef {
 /// The iterator provided to the macro may consume the underlying container-elements or clone each element.
 ///
 /// Example
-//```rust
-//use std::mem;
+///```rust
+/// use std::mem;
 /// use std::ptr;
 ///
 /// fn large_seq_rollout_on_stack() {
