@@ -930,4 +930,82 @@ mod benchmark {
         });
     }
 
+
+
+    #[bench]
+    fn bench_uninit_008(b: &mut test::Bencher) {
+        const N: u32 = 8;
+        b.iter(|| unsafe {
+            let mut a: [u32; N as usize] = ::std::mem::uninitialized();
+
+            let sum = recurs_stack_array(&mut a, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+
+    #[bench]
+    fn bench_uninit_016(b: &mut test::Bencher) {
+        const N: u32 = 16;
+        b.iter(|| unsafe {
+            let mut a: [u32; N as usize] = ::std::mem::uninitialized();
+
+            let sum = recurs_stack_array(&mut a, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+
+    #[bench]
+    fn bench_uninit_032(b: &mut test::Bencher) {
+        const N: u32 = 32;
+        b.iter(|| unsafe {
+            let mut a: [u32; N as usize] = ::std::mem::uninitialized();
+
+            let sum = recurs_stack_array(&mut a, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+
+    #[bench]
+    fn bench_uninit_064(b: &mut test::Bencher) {
+        const N: u32 = 64;
+        b.iter(|| unsafe {
+            let mut a: [u32; N as usize] = ::std::mem::uninitialized();
+
+            let sum = recurs_stack_array(&mut a, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+
+    #[bench]
+    fn bench_uninit_128(b: &mut test::Bencher) {
+        const N: u32 = 128;
+        b.iter(|| unsafe {
+            let mut a: [u32; N as usize] = ::std::mem::uninitialized();
+
+            let sum = recurs_stack_array(&mut a, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
+
+
+    #[bench]
+    fn bench_uninit_512(b: &mut test::Bencher) {
+        const N: u32 = 512;
+        b.iter(|| unsafe {
+            let mut a: [u32; N as usize] = ::std::mem::uninitialized();
+
+            let sum = recurs_stack_array(&mut a, 0, N);
+            assert_eq!(sum, sum_of_sums(N-1));
+            sum
+        });
+    }
 }
