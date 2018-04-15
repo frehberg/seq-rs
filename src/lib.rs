@@ -1,84 +1,144 @@
 #![cfg_attr(feature = "benchmark", feature(test))]
 
-/// The module _seq_ provides a generic sequence container _Seq_ for Rust.
-///
-/// _Seq_ is a lightweight container of data sequences (LIFO), managing dynamic list without
-/// dynamic memory allocation involved. Sequences are stored in stack frames of function contexts.
-/// Each element of a sequence has an individual lifetime `'a` managed by the Rust compiler.
-///
-/// Put this in your Cargo.toml:
-/// ```toml
-/// ## Cargo.toml file
-/// [dependencies]
-/// seq = "0.4"
-/// ```
-
+//! The module `seq` provides the lightweight, generic sequence container `Seq` for unmovable data
+//! and is embedded into the program during compile time. Elements of `Seq` are
+//! stacked on top of each other.
+//!
+//! Initially a sequence is empty. A longer sequence is constructed attaching a new _head_
+//! to the existing sequence, representing the _tail_.
+//!
+//! Multiple sequences may share the same _tail_, permitting memory-efficient organisation of
+//! hierarchical data.
+//!
+//! Put this in your Cargo.toml:
+//! ```toml
+//! ## Cargo.toml file
+//! [dependencies]
+//! seq = "0.5"
+//! ```
+//! The "default" usage of this type as a queue is to use [`Empty`] or [`ConsRef`] to construct a
+//! queue, and [`head`] and [`tail`] to deconstruct a queue into head and remaining
+//! tail of a sequence.
+//!
+//! # Examples
+//!
+//! Constructing two sequences seq1 as `[1,0]` and seq2 as `[2,1,0]`, sharing data with `seq1`
+//! ```rust
+//! use seq::Seq;
+//!
+//! // constructing the sequence 'seq1'
+//! const seq1: Seq<i32> = Seq::ConsRef(1, &Seq::ConsRef(0, &Seq::Empty));
+//!
+//! // construction the sequence 'seq2' sharing data with 'seq1'
+//! const seq2: Seq<i32> = Seq::ConsRef(2, &seq1);
+//! ```
+//! Deconstructing a sequence
+//! ```rust
+//! use seq::Seq;
+//!
+//! fn print_head<'a>(seq: &'a Seq<i32>) {
+//!    println!("head {}", seq.head().unwrap());
+//! }
+//! ```
+//! Extend an existing sequence. Note the lifetime of the return type matches the one of the tail.
+//! ```rust
+//! use seq::Seq;
+//!
+//! fn extend<'a>(head: i32, tail: &'a Seq<i32>) -> Seq<'a, i32> {
+//!    return Seq::ConsRef(head, tail);
+//! }
+//! ```
+//! Extend an existing sequence with dynamic element residing in heap-memory
+//! ```rust
+//! use seq::Seq;
+//!
+//! fn extend_boxed<'a>(head: i32, tail: &'a Seq<i32>) -> Box<Seq<'a, i32>> {
+//!    return Box::new(Seq::ConsRef(head, tail));
+//! }
+//! ```
+//! Iterate a sequence
+//! ```rust
+//! use seq::Seq;
+//!
+//! fn sum_up(seq: &Seq<i32>) -> i32 {
+//!    return seq.into_iter().fold(0, |x, y| x + y);
+//! }
+//! ```
+//! [`Empty`]: enum.Seq.html#variant.Empty
+//! [`ConsRef`]: enum.Seq.html#variant.ConsRef
+//! [`tail`]:  #method.tail
+//! [`head`]:  #method.head
 use std::fmt;
 use std::iter::Iterator;
 
 
-/// The data type Seq is a generic data container providing linked list functionality.
-/// _Seq_ is a sequence of data of type T and lifetime 'a.
+/// A single-ended, growable, unmovable queue of data, linking constant data with dynamic data.
 ///
-/// Either a sequence is  _Empty_ or a sequence is a construction of a new value
-/// (head or first (ft)) on-top of another sequence (the tail or rest (rt)). The lifetime of the tail must be at least as
-/// long as the one of the head. Two kind of constructions are possible, depending on location of tail in memory-heap or
-/// on stack.
+/// The "default" usage of this type as a queue is to use [`Empty`] or [`ConsRef`] to construct a
+/// queue, and [`head`] and [`tail`] to deconstruct a queue into head and remaining
+/// tail of a sequence.
+///
+/// # Examples
+///
+/// Constructing two sequences seq1 as `[1,0]` and seq2 as `[2,1,0]`, sharing data with `seq1`
 /// ```rust
-/// pub enum Seq<'a, T: 'a> {
-///     Empty,
-///     ConsRef(T, &'a Seq<'a, T>),
-///     ConsOwn(T, Box<Seq<'a, T>>),
+/// use seq::Seq;
+/// // constructing the sequence 'seq1'
+/// const seq1: Seq<i32> = Seq::ConsRef(1, &Seq::ConsRef(0, &Seq::Empty));
+///
+/// // construction the sequence 'seq2' sharing data with 'seq1'
+/// const seq2: Seq<i32> = Seq::ConsRef(2, &seq1);
+/// ```
+/// Deconstructing a sequence
+/// ```rust
+/// use seq::Seq;
+///
+/// fn print_head<'a>(seq: &'a Seq<i32>) {
+///    println!("head {}", seq.head().unwrap());
 /// }
 /// ```
-/// The semantic of these variants is as follows:
-/// * `Empty`: The empty sequence `<>`
-/// * `ConsRef(head, tail)`: Constructs a new sequence with `head` being the first element and `tail` referencing another,
-/// borrowed sequence. This variant permits construction of sequences using stack-allocated
-/// data solely.
-/// * `ConsOwn(head, boxedtail)`: Constructs a new sequence with `head` being the first element and `boxedtail` referencing
-/// another, owned, boxed sequence. Here the tail is residing in heap allocated memory. This variant
-/// permits construction of sequences using heap-allocated dynamic data.
+/// Extend an existing sequence. Note the lifetime of the return type matches the one of the tail.
+/// ```rust
+/// use seq::Seq;
 ///
-/// These variants may be combined with each other, representing a mixture of borrowed and owned elements. The memory
-/// safety feature of Rust allows automated and correct management of lifetime of each element of the sequence.
-///
-/// The lifetime of each element of the sequence depends on the function-context it has been added to the top of the
-/// sequence; _Empty_ is the element with longest lifetime.
-///
-/// In first place, the container  _Seq_ is intended as lightweight, dynamic, stack-allocated, linked list for
-/// use cases such as traversing tree-structures without any dynamic memory-allocation (heap) involved.
-///
-/// The sequence type `Seq` implements the trait `IntoIterator`, enabling the usage of Rust's iterator framework.
-///
-/// A sequence can be a mixture of borrowed and owned data elements:
+/// fn extend<'a>(head: i32, tail: &'a Seq<i32>) -> Seq<'a, i32> {
+///    return Seq::ConsRef(head, tail);
+/// }
 /// ```
-/// let s0: &Seq<u32> = empty();
-/// let s1: Seq<u32> = Seq::ConsRef(0, s0);
-/// let s2: Box<Seq<u32>> = Box::new(Seq::ConsRef(1, &s1));
-/// let s3: Box<Seq<u32>> = Box::new(Seq::ConsOwn(2, s2));
-/// let s4: Seq<u32> = Seq::ConsOwn(Data(3, s3);
+/// Extend an existing sequence with dynamic element residing in heap-memory
+/// ```rust
+/// use seq::Seq;
+///
+/// fn extend_boxed<'a>(head: i32, tail: &'a Seq<i32>) -> Box<Seq<'a, i32>> {
+///    return Box::new(Seq::ConsRef(head, tail));
+/// }
 /// ```
-/// Pattern-matching can be used to de-construct a sequence.
+/// Iterate a sequence
+/// ```rust
+/// use seq::Seq;
+///
+/// fn sum_up(seq: &Seq<i32>) -> i32 {
+///    return seq.into_iter().fold(0, |x, y| x + y);
+/// }
 /// ```
-/// fn head(seq: &Seq<u32>) -> Option<u32> {
-///    match self.cur {
-///       &Seq::Empty => Option::None,
-///       &Seq::ConsRef(ref ft, ref rt) => Option::Some(*ft),
-///       &Seq::ConsOwn(ref ft, ref rt) => Option::Some(*ft)
-///  }
-/// ```
+/// [`Empty`]: enum.Seq.html#variant.Empty
+/// [`ConsRef`]: enum.Seq.html#variant.ConsRef
+/// [`tail`]:  #method.tail
+/// [`head`]:  #method.head
 #[derive(Clone)]
 pub enum Seq<'a, T: 'a> {
+    /// The empty sequence
     Empty,
+    /// Constructing a sequence with head data and reference to a tail
     ConsRef(T, &'a Seq<'a, T>),
+    /// Constructing a sequence with head data and reference to boxed tail
     ConsOwn(T, Box<Seq<'a, T>>),
 }
 
 /// Seq method implementations
 impl<'a, T: 'a> Seq<'a, T> {
     /// Returns a reference to the head-element
-    pub fn head (&'a self) -> Option<&'a T> {
+    pub fn head(&'a self) -> Option<&'a T> {
         match self {
             &Seq::Empty => Option::None,
             &Seq::ConsRef(ref ft1, _) => Option::Some(&*ft1),
@@ -87,15 +147,15 @@ impl<'a, T: 'a> Seq<'a, T> {
     }
 
     /// Returns reference to the tail
-    pub fn tail (&'a self) -> Option<&'a Seq<T>> {
+    pub fn tail(&'a self) -> Option<&'a Seq<T>> {
         match self {
             &Seq::Empty => Option::None,
             &Seq::ConsRef(_, ref rt1) => Option::Some(*rt1),
             &Seq::ConsOwn(_, ref rt1) => Option::Some(&**rt1),
         }
     }
-
 }
+
 
 /// The seqdef! macro defines a stack-allocated sequence variable for the speficied data list,
 /// the last data item in the list will be the top most in the sequence.
@@ -130,106 +190,6 @@ macro_rules! seqdef {
    };
 }
 
-/// The macro `seqdef_try!` places values from iterator as sequence on stack.
-///
-/// This macro reserves MAX elements on the stack
-/// every time when entering the function context. The upper limit MAX is defined at compile time.
-/// At runtime the  sequence is constructed, reading the elements from the iterator and placing them
-/// in the reserved stack-memory. When the function context is left, the stack-memory is released.
-/// The macro seqdef_try! will declare the specified identifier as type Result<Seq<T>>.
-/// Rolling out the values from iterator into the reserved stack may fail if the iterator is empty,
-/// or if the amount exceeds MAX. The value of `x` must be checked after construction with `seqdef_try!`.
-///
-/// Note! No matter the number of elements returned by the iterator, the macro is always reserving
-/// stack-memory for MAX elements. If you choose too large, the stack might run out of memory.
-/// The iterator provided to the macro may consume the underlying container-elements or clone each element.
-///
-/// Example
-///```rust
-/// use std::mem;
-/// use std::ptr;
-///
-/// fn large_seq_rollout_on_stack() {
-///     const MAX: usize = 2000;
-///     let large_list: &[i32] = &[42; MAX];
-///     // define x of type Result<Seq<i32>>, read all elements from array and place them on stack as sequence
-///     seqdef_try!(x, i32, MAX; empty() => large_list.iter());
-///     // handling the result, Ok or Error
-///     match &x {
-///         &Ok(ref sequence) => println!("large sum {}", (&*sequence).into_iter().fold(0i32, ops::Add::add)),
-///         &Err(reason) => println!("roll out failed due to {}", reason)
-///     }
-/// }
-/// ```
-#[macro_export]
-macro_rules! seqdef_try {
-  ($id:ident, $typ:ty, $max:expr; $rt:expr => $iterator:expr ) => {
-        // array of size max-1, as the last Seq element will be outside of array
-        let mut _a: [Seq<$typ>; ($max)-1 ];
-        // sadly _a = Default::default() is working only array with 32 elements, the moment writing
-        // therefor using this unsafe method for now
-        unsafe {
-            _a = mem::uninitialized();
-
-            // DANGER ZONE: if anything panics or otherwise
-            // incorrectly reads the array here, we will have
-            // Undefined Behavior.
-
-            // It's ok to mutably iterate the data, since this
-            // doesn't involve reading it at all.
-            // (ptr and len are statically known for arrays)
-            for elem in &mut _a[..] {
-                // *elem = Seq::Empty would try to drop the
-                // uninitialized memory at `elem` -- bad!
-                //
-                // Seq::Empty doesn't allocate or do really
-                // anything. It's only safe to call here
-                // because we know it won't panic.
-                ptr::write(elem, $crate::Seq::Empty );
-            }
-
-            // SAFE ZONE: everything is initialized.
-        }
-
-
-        let $id: Result<Seq<$typ>, &str> = {
-            let nitems = $iterator.len();
-            let mut top: Result<Seq<$typ>, &str> = Result::Err("list must not be empty");
-
-            if nitems>$max {
-                top = Result::Err("list exceeding max number");
-            }
-            else {
-            for (i, item) in $iterator.enumerate() {
-                // special case: first and only element in list => define top
-                if i==0 && nitems==1 {
-                    top = Result::Ok($crate::Seq::ConsRef( *item, $rt ));
-                }
-                // last element in list => define top
-                else if i==nitems-1 {
-                    unsafe { // using raw-ptr as assignment to borrowed array is not possible
-                        let pre: *const Seq<$typ> = &_a[i-1];
-                        top = Result::Ok($crate::Seq::ConsRef( *item, &*pre ));
-                    }
-                }
-                // first element in list, being placed in first slot of array
-                else if i==0 {
-                    _a[i] = $crate::Seq::ConsRef( *item, $rt);
-                }
-                // element in the middle, located in array[idx] and referencing previous one idx-1
-                else {
-                    unsafe { // using raw-ptr as assignment to borrowed array is not possible
-                      let pre: *const Seq<$typ> = &_a[i-1];
-                      _a[i] = $crate::Seq::ConsRef( *item, &*pre);
-                   }
-                }
-            }
-            }
-            top
-        };
-   };
-}
-
 /// Function returns static reference to empty list
 pub fn empty<T>() -> &'static Seq<'static, T> { &Seq::Empty }
 
@@ -244,13 +204,13 @@ impl<'a, T: PartialEq> PartialEq for Seq<'a, T> {
         match (self, other) {
             (&Seq::Empty, &Seq::Empty) => true,
             (&Seq::ConsRef(ref ft1, ref rt1), &Seq::ConsRef(ref ft2, ref rt2))
-                => ft1 == ft2 && rt1 == rt2,
+            => ft1 == ft2 && rt1 == rt2,
             (&Seq::ConsRef(ref ft1, ref rt1), &Seq::ConsOwn(ref ft2, ref rt2))
-                => ft1 == ft2 && *rt1 == &**rt2,
+            => ft1 == ft2 && *rt1 == &**rt2,
             (&Seq::ConsOwn(ref ft1, ref rt1), &Seq::ConsRef(ref ft2, ref rt2))
-                => ft1 == ft2 && &**rt1 == *rt2,
+            => ft1 == ft2 && &**rt1 == *rt2,
             (&Seq::ConsOwn(ref ft1, ref rt1), &Seq::ConsOwn(ref ft2, ref rt2))
-                => ft1 == ft2 && rt1 == rt2,
+            => ft1 == ft2 && rt1 == rt2,
             _ => false,
         }
     }
@@ -267,27 +227,32 @@ impl<'a, T: fmt::Debug> fmt::Debug for Seq<'a, T> {
     }
 }
 
-/// A sequence can be processed using an iterator:
-/// ```
-/// let sequence = empty<u32>();
-/// let sum = sequence.into_iter().fold(0, ops::Add::add);
+/// A sequence implements the `IntoIterator` trait
+///
+/// # Example
+/// ```rust
+/// use seq::Seq;
+///
+/// fn sum_up(seq: &Seq<i32>) -> i32 {
+///    return seq.into_iter().fold(0, |x, y| x + y);
+/// }
 /// ```
 impl<'a, T: 'a> IntoIterator for &'a Seq<'a, T> {
     type Item = &'a T;
     type IntoIter = SeqIterator<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        SeqIterator{cur: &self}
+        SeqIterator { cur: &self }
     }
 }
 
 /// The sequence iterator representation
-pub struct SeqIterator<'a, T:'a> {
+pub struct SeqIterator<'a, T: 'a> {
     cur: &'a Seq<'a, T>,
 }
 
 /// The sequence iterator behavior implementation
-impl<'a, T:'a> Iterator for SeqIterator<'a, T> {
+impl<'a, T: 'a> Iterator for SeqIterator<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -312,9 +277,11 @@ mod tests {
     use super::empty;
     use std::ops;
 
-    // for seqdef_try
-    use std::ptr;
-    use std::mem;
+    #[test]
+    fn test_consref() {
+        let s = Seq::ConsRef(1, &Seq::ConsRef(0, &Seq::Empty));
+        assert_ne!(&s, empty());
+    }
 
     fn recurs(val: u32, max: u32, base: &Seq<u32>) {
         let ext = Seq::ConsRef(val, base);
@@ -323,8 +290,6 @@ mod tests {
             recurs(val + 1, max, &ext);
         }
     }
-
-
 
     #[test]
     fn test_empty() {
@@ -408,13 +373,13 @@ mod tests {
     fn prepend_boxed<'a>(start: u32, seq: &'a Seq<u32>) -> Box<Seq<'a, u32>> {
         Box::new(
             Seq::ConsOwn(
-                start+3,
+                start + 3,
                 Box::new(
                     Seq::ConsOwn(
-                        start+2,
+                        start + 2,
                         Box::new(
                             Seq::ConsOwn(
-                                start+1,
+                                start + 1,
                                 Box::new(
                                     Seq::ConsRef(
                                         start,
@@ -431,7 +396,7 @@ mod tests {
     }
 
     #[derive(PartialEq, PartialOrd, Debug)]
-    struct Data ([u32; 8]);
+    struct Data([u32; 8]);
 
     #[test]
     fn test_box_struct() {
@@ -458,7 +423,7 @@ mod tests {
 
     #[test]
     fn test_iter_boxed() {
-        let seq: Box<Seq<u32>> = prepend_boxed(1,empty());
+        let seq: Box<Seq<u32>> = prepend_boxed(1, empty());
 
         let iter: SeqIterator<u32> = seq.into_iter();
         let sum = iter.fold(0, ops::Add::add);
@@ -483,31 +448,6 @@ mod tests {
 
         seqdef!(w; 0, 1, 2, 3);
         assert_eq!(&w, &u);
-
-
-        seqdef_try!(x, i32, 4; empty() => [ 0i32, 1, 2, 3].iter());
-        assert_eq!(x.ok(), Some(u));
-
-        let empty_list: &[i32] = &[];
-        // failing, the list must contain one element at least
-        seqdef_try!(x, i32, 4; empty() => empty_list.iter());
-        assert_eq!(x.is_err(), true);
-
-        // exceeding max elements 4
-        seqdef_try!(x, i32, 4; empty() => [0i32, 1, 2, 3, 4].iter());
-        assert_eq!(x.is_err(), true);
-
-
-        // large number of elements 2000
-        const LARGE_LIST_LEN: usize = 2000;
-        let large_list: &[i32] = &[42; LARGE_LIST_LEN];
-        seqdef_try!(x, i32, LARGE_LIST_LEN; empty() => large_list.iter());
-        assert_eq!(x.is_ok(), true);
-        match &x {
-            &Ok(ref sequence) => println!("large sum {}", (&*sequence).into_iter().fold(0i32, ops::Add::add)),
-            &Err(reason) => println!("roll out failed due to {}", reason)
-        }
-        assert_eq!(x.unwrap().into_iter().fold(0i32, ops::Add::add), 2000*42);
     }
 
     #[test]
@@ -523,7 +463,6 @@ mod tests {
         assert_eq!(ft.unwrap(), &3);
         assert_eq!(rt.unwrap().head().unwrap(), &2);
     }
-
 }
 
 
@@ -538,18 +477,18 @@ mod benchmark {
     use std::collections::LinkedList;
 
     // Returns cumulation of  0, 0+1, 0+1+2, 0+1+2+3, ... 0+1+2+..+(N-1)
-    fn sum_of_sums(n:u32) -> u32
+    fn sum_of_sums(n: u32) -> u32
     {
-        let cumulated = (n*(n+1)*((2*n)+1)/6) + ((n*(n+1))/2);
-        cumulated/2
+        let cumulated = (n * (n + 1) * ((2 * n) + 1) / 6) + ((n * (n + 1)) / 2);
+        cumulated / 2
     }
 
     // Recursive function, adding an element and cumulate the sums, until N-1 is reached.
-    fn recurs_stack_list(l: &mut LinkedList<u32>, cnt: u32, n:u32) -> u32 {
+    fn recurs_stack_list(l: &mut LinkedList<u32>, cnt: u32, n: u32) -> u32 {
         if cnt < n {
             l.push_back(cnt);
             let sum = l.iter().fold(0u32, ops::Add::add);
-            let r = sum + recurs_stack_list( l, cnt + 1, n);
+            let r = sum + recurs_stack_list(l, cnt + 1, n);
             l.pop_back();
             r
         } else {
@@ -565,7 +504,7 @@ mod benchmark {
             let mut l = LinkedList::new();
 
             let sum = recurs_stack_list(&mut l, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -578,7 +517,7 @@ mod benchmark {
             let mut l = LinkedList::new();
 
             let sum = recurs_stack_list(&mut l, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -591,7 +530,7 @@ mod benchmark {
             let mut l = LinkedList::new();
 
             let sum = recurs_stack_list(&mut l, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -604,7 +543,7 @@ mod benchmark {
             let mut l = LinkedList::new();
 
             let sum = recurs_stack_list(&mut l, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -617,7 +556,7 @@ mod benchmark {
             let mut l = LinkedList::new();
 
             let sum = recurs_stack_list(&mut l, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -630,7 +569,7 @@ mod benchmark {
             let mut l = LinkedList::new();
 
             let sum = recurs_stack_list(&mut l, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -643,17 +582,17 @@ mod benchmark {
             let mut l = LinkedList::new();
 
             let sum = recurs_stack_list(&mut l, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
 
     // Recursive function, adding an element and cumulate the sums, until N-1 is reached.
-    fn recurs_stack_vec(v: &mut vec::Vec<u32>, cnt: u32, n:u32) -> u32 {
+    fn recurs_stack_vec(v: &mut vec::Vec<u32>, cnt: u32, n: u32) -> u32 {
         if cnt < n {
             v.push(cnt);
             let sum = v.iter().fold(0u32, ops::Add::add);
-            let r = sum + recurs_stack_vec( v, cnt + 1, n);
+            let r = sum + recurs_stack_vec(v, cnt + 1, n);
             v.truncate(cnt as usize);
             r
         } else {
@@ -668,7 +607,7 @@ mod benchmark {
         b.iter(|| {
             let mut v = vec::Vec::new();
             let sum = recurs_stack_vec(&mut v, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -680,7 +619,7 @@ mod benchmark {
         b.iter(|| {
             let mut v = vec::Vec::new();
             let sum = recurs_stack_vec(&mut v, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -692,7 +631,7 @@ mod benchmark {
         b.iter(|| {
             let mut v = vec::Vec::new();
             let sum = recurs_stack_vec(&mut v, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -704,7 +643,7 @@ mod benchmark {
         b.iter(|| {
             let mut v = vec::Vec::new();
             let sum = recurs_stack_vec(&mut v, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -716,7 +655,7 @@ mod benchmark {
         b.iter(|| {
             let mut v = vec::Vec::new();
             let sum = recurs_stack_vec(&mut v, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -728,7 +667,7 @@ mod benchmark {
         b.iter(|| {
             let mut v = vec::Vec::new();
             let sum = recurs_stack_vec(&mut v, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -740,13 +679,13 @@ mod benchmark {
         b.iter(|| {
             let mut v = vec::Vec::new();
             let sum = recurs_stack_vec(&mut v, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
 
     // Recursive function, adding an element and cumulate the sums, until N-1 is reached.
-    fn recurs_stack_seq(s: &Seq<u32>, cnt: u32, n:u32) -> u32 {
+    fn recurs_stack_seq(s: &Seq<u32>, cnt: u32, n: u32) -> u32 {
         if cnt < n {
             let ext_s = Seq::ConsRef(cnt, s);
 
@@ -763,7 +702,7 @@ mod benchmark {
 
         b.iter(|| {
             let sum = recurs_stack_seq(empty(), 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -774,7 +713,7 @@ mod benchmark {
 
         b.iter(|| {
             let sum = recurs_stack_seq(empty(), 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -785,7 +724,7 @@ mod benchmark {
 
         b.iter(|| {
             let sum = recurs_stack_seq(empty(), 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -796,7 +735,7 @@ mod benchmark {
 
         b.iter(|| {
             let sum = recurs_stack_seq(empty(), 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -807,7 +746,7 @@ mod benchmark {
 
         b.iter(|| {
             let sum = recurs_stack_seq(empty(), 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -819,7 +758,7 @@ mod benchmark {
 
         b.iter(|| {
             let sum = recurs_stack_seq(empty(), 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -830,7 +769,7 @@ mod benchmark {
 
         b.iter(|| {
             let sum = recurs_stack_seq(empty(), 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -840,8 +779,8 @@ mod benchmark {
         if cnt < n {
             a[cnt as usize] = cnt;
 
-            let sum = a[..(cnt+1) as usize].into_iter().fold(0u32, ops::Add::add);
-            sum + recurs_stack_array(a, cnt+1, n)
+            let sum = a[..(cnt + 1) as usize].into_iter().fold(0u32, ops::Add::add);
+            sum + recurs_stack_array(a, cnt + 1, n)
         } else {
             0
         }
@@ -854,7 +793,7 @@ mod benchmark {
             let mut a: [u32; N as usize] = [0; N as usize];
 
             let sum = recurs_stack_array(&mut a, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -866,7 +805,7 @@ mod benchmark {
             let mut a: [u32; N as usize] = [0; N as usize];
 
             let sum = recurs_stack_array(&mut a, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -878,7 +817,7 @@ mod benchmark {
             let mut a: [u32; N as usize] = [0; N as usize];
 
             let sum = recurs_stack_array(&mut a, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -890,7 +829,7 @@ mod benchmark {
             let mut a: [u32; N as usize] = [0; N as usize];
 
             let sum = recurs_stack_array(&mut a, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -902,7 +841,7 @@ mod benchmark {
             let mut a: [u32; N as usize] = [0; N as usize];
 
             let sum = recurs_stack_array(&mut a, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
@@ -914,10 +853,11 @@ mod benchmark {
             let mut a: [u32; N as usize] = [0; N as usize];
 
             let sum = recurs_stack_array(&mut a, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
+
     #[bench]
     fn bench_array_512(b: &mut test::Bencher) {
         const N: u32 = 512;
@@ -925,12 +865,10 @@ mod benchmark {
             let mut a: [u32; N as usize] = [0; N as usize];
 
             let sum = recurs_stack_array(&mut a, 0, N);
-            assert_eq!(sum, sum_of_sums(N-1));
+            assert_eq!(sum, sum_of_sums(N - 1));
             sum
         });
     }
-
-
 
     #[bench]
     fn bench_uninit_008(b: &mut test::Bencher) {

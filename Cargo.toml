@@ -1,10 +1,13 @@
 [package]
 name = "seq"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Frank Rehberger <frehberg@gmail.com>"]
-description = "seq provides a lightweight container Seq<'a, T> of data sequences (LIFO), managing dynamic list without dynamic memory allocation involved. Sequences are stored in stack frames of function contexts. Each element of a sequence has an individual lifetime `'a` managed by the Rust compiler."
+description = "The module 'seq' provides the lightweight, generic sequence container 'Seq' for unmovable data and is embedded into the program during compile time."
+
 license = "Apache-2.0"
-documentation = "https://docs.rs/seq/0.4.0/seq/"
+readme = "README.md"
+keywords = ["queue", "embedded", "unmovable"]
+documentation = "https://docs.rs/seq"
 homepage = "https://github.com/frehberg/seq-rs.git"
 repository = "https://github.com/frehberg/seq-rs.git"
 
