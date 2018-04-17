@@ -1,14 +1,20 @@
 # seq module
 
-The module `seq` provides the lightweight, generic sequence container `Seq` for unmovable data
-and is embedded into the program during compile time. Elements of `Seq` are
-stacked on top of each other.
+The module `seq` provides the lightweight, generic sequence container `Seq` for unmovable data.
 
-Initially a sequence is empty. A longer sequence is constructed attaching a new _head_
-to the existing sequence, representing the _tail_.
+The container `Seq` is linking data of hierarchical function-scopes on top of each other,
+forming sequences. A sequence can be embedded into the program during compile time.
+
+Initially a sequence is empty. A longer sequence is constructed (see `Seg::ConsRef`) attaching a
+new _head_ to the existing sequence, representing the _tail_.  The _head_ element has a shorter
+lifetime, than all elements of the _tail_.
 
 Multiple sequences may share the same _tail_, permitting memory-efficient organisation of
 hierarchical data.
+
+The associated methods `Seq::head` and `Seq::tail` have been defined for convenience reasons only.
+The construction and deconstruction of a sequence is realized by the algebraic data-types of Rust
+solely.
 
 ## Usage
 
@@ -33,8 +39,6 @@ pub enum Seq<'a, T: 'a> {
 
 ## Examples
 
-
-
 Constructing two sequences seq1 as `[1,0]` and seq2 as `[2,1,0]`, sharing data with `seq1`
 ```rust
 // constructing the sequence 'seq1'
@@ -43,10 +47,13 @@ const seq1: Seq<i32> = Seq::ConsRef(1, &Seq::ConsRef(0, &Seq::Empty));
 // construction the sequence 'seq2' sharing data with 'seq1'
 const seq2: Seq<i32> = Seq::ConsRef(2, &seq1);
 ```
-Deconstructing a sequence
+Deconstructing a sequence  into the `head` and `tail`
 ```rust
-fn print_head<'a>(seq: &'a Seq<i32>) {
-   println!("head {}", seq.head().unwrap());
+fn deconstruct<'a>(seq: &'a Seq<i32>) {
+   let head = seq.head().unwrap());
+   let tail = seq.tail().unwrap();
+   // more code here
+   ///
 }
 ```
 Extend an existing sequence. Note the lifetime of the return type matches the one of the tail.
@@ -71,7 +78,7 @@ fn sum_up(seq: &Seq<i32>) -> i32 {
 ## Memory layout
 
 The following image illustrates the sequences `s`, `t`, `u`. The sequence `s` is a sub-sequence of `t`, and `t` 
-being a sub-sequence of `u`; each one accessible in its function context only. 
+being a sub-sequence of `u`; each one accessible in its function context only. One can create a new sequence containing additional elements, wihtout the need to create a copy of all elements.
 ![Illustration of sequence elements in stack frames](./doc/illustration.svg)
 
 For use-cases where a sub-routine/expression shall return a temporary extended sequence, it is possible to construct new 
@@ -86,40 +93,42 @@ The benchmark is a memory-intensive, recursive function call and benefits from c
 each recursive function-call a new integer element is appended and an iterator is cumulating all elements.
 
 As the benchmark-chart demonstrates, the container `Seq` performs better than `Vec` and`LinkedList` for up to
-`N=16` elements; and even shows better performance than `LinkedList` if less than `N=64` elements. The benchmark
-is performed for up to N= 8, 16, 32, 64, 128, 256, 512.
+`N=16` elements; and even shows better performance than `LinkedList`, and lower variants up to a
+certain bound. The benchmark is performed for N= 8, 16, 32, 64, 128, 256, 512.
+
+The test-environment is using a Lenovo-x260 laptop using `rustc 1.27.0-nightly (bd40cbbe1 2018-04-14)`.
 
 ```> cargo bench --features benchmark```
 
 ```commandline
-test benchmark::bench_array___8 ... bench:           0 ns/iter (+/- 0)
-test benchmark::bench_array__16 ... bench:           0 ns/iter (+/- 0)
-test benchmark::bench_array__32 ... bench:         196 ns/iter (+/- 9)
-test benchmark::bench_array__64 ... bench:         450 ns/iter (+/- 29)
-test benchmark::bench_array_128 ... bench:       1,109 ns/iter (+/- 98)
-test benchmark::bench_array_256 ... bench:       3,125 ns/iter (+/- 50)
-test benchmark::bench_array_512 ... bench:      12,053 ns/iter (+/- 230)
-test benchmark::bench_list___8  ... bench:         215 ns/iter (+/- 4)
-test benchmark::bench_list__16  ... bench:         527 ns/iter (+/- 10)
-test benchmark::bench_list__32  ... bench:       1,408 ns/iter (+/- 461)
-test benchmark::bench_list__64  ... bench:       4,209 ns/iter (+/- 86)
-test benchmark::bench_list_128  ... bench:      13,638 ns/iter (+/- 884)
-test benchmark::bench_list_256  ... bench:      52,786 ns/iter (+/- 4,552)
-test benchmark::bench_list_512  ... bench:     188,453 ns/iter (+/- 3,053)
-test benchmark::bench_seq___8   ... bench:          53 ns/iter (+/- 1)
-test benchmark::bench_seq__16   ... bench:         191 ns/iter (+/- 10)
-test benchmark::bench_seq__32   ... bench:       1,081 ns/iter (+/- 30)
-test benchmark::bench_seq__64   ... bench:       4,432 ns/iter (+/- 82)
-test benchmark::bench_seq_128   ... bench:      16,749 ns/iter (+/- 209)
-test benchmark::bench_seq_256   ... bench:      63,775 ns/iter (+/- 528)
-test benchmark::bench_seq_512   ... bench:     247,919 ns/iter (+/- 2,183)
-test benchmark::bench_vec___8   ... bench:         111 ns/iter (+/- 3)
-test benchmark::bench_vec__16   ... bench:         221 ns/iter (+/- 4)
-test benchmark::bench_vec__32   ... bench:         398 ns/iter (+/- 11)
-test benchmark::bench_vec__64   ... bench:         735 ns/iter (+/- 19)
-test benchmark::bench_vec_128   ... bench:       1,634 ns/iter (+/- 49)
-test benchmark::bench_vec_256   ... bench:       4,774 ns/iter (+/- 103)
-test benchmark::bench_vec_512   ... bench:      15,306 ns/iter (+/- 250)
+test benchmark::bench_array_008  ... bench:          28 ns/iter (+/- 2)
+test benchmark::bench_array_016  ... bench:          70 ns/iter (+/- 0)
+test benchmark::bench_array_032  ... bench:         156 ns/iter (+/- 7)
+test benchmark::bench_array_064  ... bench:         368 ns/iter (+/- 10)
+test benchmark::bench_array_128  ... bench:         920 ns/iter (+/- 39)
+test benchmark::bench_array_256  ... bench:       2,639 ns/iter (+/- 138)
+test benchmark::bench_array_512  ... bench:       8,355 ns/iter (+/- 263)
+test benchmark::bench_list_008   ... bench:         179 ns/iter (+/- 8)
+test benchmark::bench_list_016   ... bench:         396 ns/iter (+/- 17)
+test benchmark::bench_list_032   ... bench:       1,053 ns/iter (+/- 58)
+test benchmark::bench_list_064   ... bench:       3,433 ns/iter (+/- 173)
+test benchmark::bench_list_128   ... bench:      12,158 ns/iter (+/- 276)
+test benchmark::bench_list_256   ... bench:      48,419 ns/iter (+/- 585)
+test benchmark::bench_list_512   ... bench:     186,391 ns/iter (+/- 4,401)
+test benchmark::bench_seq_008    ... bench:          44 ns/iter (+/- 1)
+test benchmark::bench_seq_016    ... bench:         135 ns/iter (+/- 10)
+test benchmark::bench_seq_032    ... bench:         648 ns/iter (+/- 41)
+test benchmark::bench_seq_064    ... bench:       2,964 ns/iter (+/- 75)
+test benchmark::bench_seq_128    ... bench:      11,654 ns/iter (+/- 278)
+test benchmark::bench_seq_256    ... bench:      44,908 ns/iter (+/- 570)
+test benchmark::bench_seq_512    ... bench:     175,569 ns/iter (+/- 4,009)
+test benchmark::bench_vec_008    ... bench:          93 ns/iter (+/- 4)
+test benchmark::bench_vec_016    ... bench:         182 ns/iter (+/- 4)
+test benchmark::bench_vec_032    ... bench:         353 ns/iter (+/- 13)
+test benchmark::bench_vec_064    ... bench:         676 ns/iter (+/- 8)
+test benchmark::bench_vec_128    ... bench:       1,415 ns/iter (+/- 78)
+test benchmark::bench_vec_256    ... bench:       3,485 ns/iter (+/- 212)
+test benchmark::bench_vec_512    ... bench:      11,261 ns/iter (+/- 425)
 ```
 
 ![Benchmark chart](./doc/bench-chart.jpg)
@@ -129,5 +138,5 @@ to the tail.
 
 ## Conclusion
 These benchmarks show, the collection `Seq` shows better performance than `Vec` for 16 elements or less, and even
-better performance than `LinkedList` for 64 elements or less. In this range `Seq` benefits from stack-memory.
-When `N>64` performance drops, probably caused by page-faults and the need to request new memory-pages from OS.
+better performance than `LinkedList` for all test-cases up to 512 elements. In this range `Seq` benefits from stack-memory.
+When `N>32` the performance drops, probably caused by page-faults and the need to request additional stack memory-pages from OS, getting similar to the performance of linked-lists.

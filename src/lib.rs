@@ -1,14 +1,20 @@
 #![cfg_attr(feature = "benchmark", feature(test))]
-
-//! The module `seq` provides the lightweight, generic sequence container `Seq` for unmovable data
-//! and is embedded into the program during compile time. Elements of `Seq` are
-//! stacked on top of each other.
+ 
+//! The module `seq` provides the lightweight, generic sequence container [`Seq`] for unmovable data.
 //!
-//! Initially a sequence is empty. A longer sequence is constructed attaching a new _head_
-//! to the existing sequence, representing the _tail_.
-//!
+//! The container `Seq` is linking data of hierarchical function-scopes on top of each other,
+//! forming sequences. A sequence can be embedded into the program during compile time.
+//! 
+//! Initially a sequence is empty. A longer sequence is constructed (see [`ConsRef`]) attaching a
+//! new _head_ to the existing sequence, representing the _tail_.  The _head_ element has a shorter
+//! lifetime, than all elements of the _tail_.
+//! 
 //! Multiple sequences may share the same _tail_, permitting memory-efficient organisation of
 //! hierarchical data.
+//! 
+//! The associated methods [`head`] and [`tail`] have been defined for convenience reasons only.
+//! The construction and deconstruction of a sequence is realized by the algebraic data-types of Rust
+//! solely.
 //!
 //! Put this in your Cargo.toml:
 //! ```toml
@@ -68,6 +74,8 @@
 //! [`ConsRef`]: enum.Seq.html#variant.ConsRef
 //! [`tail`]:  #method.tail
 //! [`head`]:  #method.head
+//! [`Seq`]: enum.Seq.html
+
 use std::fmt;
 use std::iter::Iterator;
 
@@ -89,12 +97,15 @@ use std::iter::Iterator;
 /// // construction the sequence 'seq2' sharing data with 'seq1'
 /// const seq2: Seq<i32> = Seq::ConsRef(2, &seq1);
 /// ```
-/// Deconstructing a sequence
+/// Deconstructing a sequence into the [`head`] and [`tail`]
 /// ```rust
 /// use seq::Seq;
 ///
-/// fn print_head<'a>(seq: &'a Seq<i32>) {
-///    println!("head {}", seq.head().unwrap());
+/// fn deconstruct<'a>(seq: &'a Seq<i32>) {
+///    let head = seq.head().unwrap();
+///    let tail = seq.tail().unwrap();
+///    // more code here
+///    // ...
 /// }
 /// ```
 /// Extend an existing sequence. Note the lifetime of the return type matches the one of the tail.
