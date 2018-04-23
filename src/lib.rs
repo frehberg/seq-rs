@@ -288,6 +288,21 @@ mod tests {
     use super::empty;
     use std::ops;
 
+    struct MyData(&'static str);
+
+    // this static ring has 4 elements only
+    static CYC_A: Seq<MyData> = Seq::ConsRef(MyData("Forever"), &CYC_D); // len()==7
+    static CYC_B : Seq<MyData> = Seq::ConsRef(MyData("Round"), &CYC_A); // len()==5
+    static CYC_C : Seq<MyData> = Seq::ConsRef(MyData("And"), &CYC_B); // len()==3
+    static CYC_D : Seq<MyData> = Seq::ConsRef(MyData("Round"), &CYC_C); // len()==5
+
+    #[test]
+    fn test_cyclic() {
+        // take first 12 elements from cyclic ring and count the characters
+        let sum = CYC_A.into_iter().take(3*4).fold(0, | x, y| x + y.0.len());
+        assert_eq!(3*20, sum);
+    }
+
     #[test]
     fn test_consref() {
         let s = Seq::ConsRef(1, &Seq::ConsRef(0, &Seq::Empty));
@@ -429,6 +444,7 @@ mod tests {
         let s4 = Seq::ConsRef(4u32, &s3);
         let iter: SeqIterator<u32> = s4.into_iter();
         let sum = iter.fold(0, ops::Add::add);
+
         assert_eq!(sum, 10);
     }
 
@@ -957,4 +973,7 @@ mod benchmark {
             sum
         });
     }
+
+
+
 }
