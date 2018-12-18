@@ -165,6 +165,14 @@ impl<'a, T: 'a> Seq<'a, T> {
             &Seq::ConsOwn(_, ref rt1) => Option::Some(&**rt1),
         }
     }
+
+    pub fn len(&'a self) -> usize {
+         match self {
+            &Seq::Empty => 0,
+             &Seq::ConsRef(_, ref rt1) => 1 + rt1.len(),
+             &Seq::ConsOwn(_, ref rt1) => 1 + rt1.len(),
+        }
+    }
 }
 
 
@@ -321,6 +329,8 @@ mod tests {
     fn test_empty() {
         let s0: &Seq<u32> = empty();
         let s1 = Seq::ConsRef(1u32, s0);
+        assert_eq!(s0.len(), 0);
+        assert_eq!(s1.len(), 1);
 
         assert_eq!(s0, empty());
         assert_ne!(&s1, empty());
@@ -344,6 +354,9 @@ mod tests {
 
         // z-branch prepending elements to s2: <33,2,1>
         let z = Seq::ConsRef(33u32, &s2);
+        assert_eq!(s0.len(), 0);
+        assert_eq!(s1.len(), 1);
+        assert_eq!(s2.len(), 2);
 
         assert_eq!(s0, empty());
         assert_eq!(s1, s1);
@@ -431,6 +444,9 @@ mod tests {
         let s2: Box<Seq<Data>> = Box::new(Seq::ConsRef(Data([1; 8]), &s1));
         let s3: Box<Seq<Data>> = Box::new(Seq::ConsOwn(Data([2; 8]), s2));
         let s4: Seq<Data> = Seq::ConsOwn(Data([3; 8]), s3);
+
+
+        assert_eq!(s4.len(), 4);
 
         assert_eq!(&s4, &s4);
     }
