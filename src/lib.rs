@@ -143,8 +143,10 @@ pub enum Seq<'a, T: 'a> {
     /// Constructing a sequence with head data and reference to a tail
     ConsRef(T, &'a Seq<'a, T>),
     /// Constructing a sequence with head data and reference to boxed tail
+    #[cfg(not(feature = "lite-seq"))]
     ConsOwn(T, Box<Seq<'a, T>>),
 }
+
 
 /// Seq method implementations
 impl<'a, T: 'a> Seq<'a, T> {
@@ -153,6 +155,7 @@ impl<'a, T: 'a> Seq<'a, T> {
         match self {
             &Seq::Empty => Option::None,
             &Seq::ConsRef(ref ft1, _) => Option::Some(&*ft1),
+            #[cfg(not(feature = "lite-seq"))]
             &Seq::ConsOwn(ref ft1, _) => Option::Some(&*ft1),
         }
     }
@@ -162,7 +165,9 @@ impl<'a, T: 'a> Seq<'a, T> {
         match self {
             &Seq::Empty => Option::None,
             &Seq::ConsRef(_, ref rt1) => Option::Some(*rt1),
+            #[cfg(not(feature = "lite-seq"))]
             &Seq::ConsOwn(_, ref rt1) => Option::Some(&**rt1),
+
         }
     }
 
@@ -170,6 +175,7 @@ impl<'a, T: 'a> Seq<'a, T> {
          match self {
             &Seq::Empty => 0,
              &Seq::ConsRef(_, ref rt1) => 1 + rt1.len(),
+            #[cfg(not(feature = "lite-seq"))]
              &Seq::ConsOwn(_, ref rt1) => 1 + rt1.len(),
         }
     }
@@ -224,10 +230,13 @@ impl<'a, T: PartialEq> PartialEq for Seq<'a, T> {
             (&Seq::Empty, &Seq::Empty) => true,
             (&Seq::ConsRef(ref ft1, ref rt1), &Seq::ConsRef(ref ft2, ref rt2))
             => ft1 == ft2 && rt1 == rt2,
+            #[cfg(not(feature = "lite-seq"))]
             (&Seq::ConsRef(ref ft1, ref rt1), &Seq::ConsOwn(ref ft2, ref rt2))
             => ft1 == ft2 && *rt1 == &**rt2,
+            #[cfg(not(feature = "lite-seq"))]
             (&Seq::ConsOwn(ref ft1, ref rt1), &Seq::ConsRef(ref ft2, ref rt2))
             => ft1 == ft2 && &**rt1 == *rt2,
+            #[cfg(not(feature = "lite-seq"))]
             (&Seq::ConsOwn(ref ft1, ref rt1), &Seq::ConsOwn(ref ft2, ref rt2))
             => ft1 == ft2 && rt1 == rt2,
             _ => false,
@@ -241,6 +250,7 @@ impl<'a, T: fmt::Debug> fmt::Debug for Seq<'a, T> {
         match self {
             &Seq::Empty => write!(f, "<>"),
             &Seq::ConsRef(ref ft, _) => write!(f, "<{:?},...>", ft),
+            #[cfg(not(feature = "lite-seq"))]
             &Seq::ConsOwn(ref ft, _) => write!(f, "<{:?},...>", ft),
         }
     }
@@ -281,6 +291,7 @@ impl<'a, T: 'a> Iterator for SeqIterator<'a, T> {
                 self.cur = &*rt;
                 Option::Some(&*ft)
             }
+            #[cfg(not(feature = "lite-seq"))]
             &Seq::ConsOwn(ref ft, ref rt) => {
                 self.cur = &**rt; // deref boxed rest
                 Option::Some(&*ft)
@@ -292,8 +303,10 @@ impl<'a, T: 'a> Iterator for SeqIterator<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::Seq;
+    #[cfg(not(feature = "lite-seq"))]
     use super::SeqIterator;
     use super::empty;
+    #[cfg(not(feature = "lite-seq"))]
     use std::ops;
 
     struct MyData(&'static str);
@@ -336,6 +349,7 @@ mod tests {
         assert_ne!(&s1, empty());
     }
 
+    #[cfg(not(feature = "lite-seq"))]
     #[test]
     fn test_shared() {
         let s0: &Seq<u32> = empty();
@@ -387,9 +401,11 @@ mod tests {
                     &Seq::ConsRef(h2, _) => {
                         assert_eq!(h2, 1u32);
                     }
+                     #[cfg(not(feature = "lite-seq"))]
                     _ => assert!(false, "seq was not owned!"),
                 }
             }
+            #[cfg(not(feature = "lite-seq"))]
             _ => assert!(false, "seq was not owned!"),
         }
 
@@ -409,6 +425,7 @@ mod tests {
         recurs(0, 9, empty());
     }
 
+    #[cfg(not(feature = "lite-seq"))]
     fn prepend_boxed<'a>(start: u32, seq: &'a Seq<u32>) -> Box<Seq<'a, u32>> {
         Box::new(
             Seq::ConsOwn(
@@ -425,6 +442,7 @@ mod tests {
                                         seq))))))))
     }
 
+    #[cfg(not(feature = "lite-seq"))]
     #[test]
     fn test_box() {
         let s0: &Seq<u32> = empty();
@@ -437,6 +455,7 @@ mod tests {
     #[derive(PartialEq, PartialOrd, Debug)]
     struct Data([u32; 8]);
 
+    #[cfg(not(feature = "lite-seq"))]
     #[test]
     fn test_box_struct() {
         let s0: &Seq<Data> = empty();
@@ -451,6 +470,7 @@ mod tests {
         assert_eq!(&s4, &s4);
     }
 
+    #[cfg(not(feature = "lite-seq"))]
     #[test]
     fn test_iter() {
         let s0: &Seq<u32> = empty();
@@ -464,6 +484,7 @@ mod tests {
         assert_eq!(sum, 10);
     }
 
+    #[cfg(not(feature = "lite-seq"))]
     #[test]
     fn test_iter_boxed() {
         let seq: Box<Seq<u32>> = prepend_boxed(1, empty());

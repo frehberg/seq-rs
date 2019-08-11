@@ -22,12 +22,25 @@ Put this in your Cargo.toml:
 ```toml
 ## Cargo.toml file
 [dependencies]
-seq = "0.5"
+seq = "0.6"
 ```
 
 The "default" usage of this type as a queue is to use `Empty` or `ConsRef` to construct a
 queue, and `head` and `tail` to deconstruct a queue into head and remaining
 tail of a sequence.
+
+### Lite-Seq - Without dynamic memory
+If enabling the feature 'lite-seq', the support for the box-ed elements `Seq::ConsOwn(..)` is removed, 
+limiting the seq-containers to static elements or elements in lexical scope. This feature might
+be interesting for `no_std` build-environments, without support for dynamic memory or `malloc`.
+
+```
+[dependencies.seq]
+features = ["lite-seq"]
+version = "^0.6"
+git = "https://github.com/frehberg/seq-rs.git"
+```
+
 
 ```rust
 pub enum Seq<'a, T: 'a> {
